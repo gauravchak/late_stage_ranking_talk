@@ -31,29 +31,29 @@
       
       <!-- Architectural breadcrumbs map -->
       <div class="breadcrumbs-map">
-        <span class="breadcrumb-step active" data-range="1,7">Foundations</span>
+        <span class="breadcrumb-step active" data-range="1,6">Foundations</span>
         <span class="breadcrumb-arrow">→</span>
-        <span class="breadcrumb-step" data-range="8,10">Interactions</span>
+        <span class="breadcrumb-step" data-range="7,9">Interactions</span>
         <span class="breadcrumb-arrow">→</span>
-        <span class="breadcrumb-step" data-range="11,14">Multi-Task</span>
+        <span class="breadcrumb-step" data-range="10,13">Multi-Task</span>
         <span class="breadcrumb-arrow">→</span>
-        <span class="breadcrumb-step" data-range="15,20">Sequence / Attention</span>
+        <span class="breadcrumb-step" data-range="14,19">Sequence / Attention</span>
         <span class="breadcrumb-arrow">→</span>
-        <span class="breadcrumb-step" data-range="21,22">Architecture</span>
+        <span class="breadcrumb-step" data-range="20,21">Architecture</span>
       </div>
 
       <div class="progress-container">
         <div class="progress-bar-bg">
           <div class="progress-bar-fill"></div>
         </div>
-        <div class="progress-text">1 / 22</div>
+        <div class="progress-text">1 / 21</div>
       </div>
     </header>
 
     <!-- Slides Wrapper -->
     <main class="slides-wrapper">
 
-      <!-- SLIDE 1: Title -->
+            <!-- SLIDE 1: Title -->
       <section class="slide" id="slide-1">
         <div class="slide-title-layout">
           <span class="slide-tag">recsysml talk on late stage ranking</span>
@@ -279,45 +279,10 @@ ranked_ids = <span class="fn">value_model</span>(probs) <span class="shape-badge
         </div>
       </section>
 
-      <!-- SLIDE 7: Pairwise Math -->
+      <!-- SLIDE 7: Interactions -->
       <section class="slide" id="slide-7">
         <div class="slide-header">
-          <span class="slide-tag">07. Pairwise Math</span>
-          <h2>BCEWithLogitsLoss is the logistic ranking loss.</h2>
-        </div>
-        <div class="slide-content-grid">
-          <div class="narrative-col">
-            <p>Let $z = \text{score}_i - \text{score}_j$. The model probability that item $i$ should rank above item $j$ is:</p>
-            <div class="math-block">
-              $$p(i > j) = \sigma(z) = \frac{1}{1 + \exp(-z)}$$
-            </div>
-            
-            <p>For a binary target $y$, BCE is:</p>
-            <div class="math-block">
-              $$\text{loss} = - y \log(\sigma(z)) - (1 - y) \log(1 - \sigma(z))$$
-            </div>
-            
-            <p>If $i$ is positive and $j$ is negative, $y = 1$:</p>
-            <div class="math-block">
-              $$\text{loss} = -\log(\sigma(\text{score}_{\text{pos}} - \text{score}_{\text{neg}}))$$
-            </div>
-            
-            <p style="margin-top: 10px;">Minimizing the loss pushes $\text{score}_{\text{pos}}$ above $\text{score}_{\text{neg}}$. Using logits directly is the numerically stable implementation.</p>
-          </div>
-          <div class="visualizer-col">
-            <pre data-lang="python"><code><span class="cm"># z = score_pos - score_neg</span>
-target = torch.ones_like(z) <span class="shape-badge">Shape: [B_pairs]</span>
-loss = F.binary_cross_entropy_with_logits(
-    z, target
-)</code></pre>
-          </div>
-        </div>
-      </section>
-
-      <!-- SLIDE 8: Interactions -->
-      <section class="slide" id="slide-8">
-        <div class="slide-header">
-          <span class="slide-tag">08. Feature Interactions</span>
+          <span class="slide-tag">07. Feature Interactions</span>
           <h2>Many ranking signals are naturally "and" conditions.</h2>
         </div>
         <div class="slide-content-grid" style="grid-template-columns: 1fr 1fr;">
@@ -341,10 +306,10 @@ loss = F.binary_cross_entropy_with_logits(
         </div>
       </section>
 
-      <!-- SLIDE 9: Simple Neural Interactions -->
-      <section class="slide" id="slide-9">
+      <!-- SLIDE 8: Simple Neural Interactions -->
+      <section class="slide" id="slide-8">
         <div class="slide-header">
-          <span class="slide-tag">09. Neural Interactions</span>
+          <span class="slide-tag">08. Neural Interactions</span>
           <h2>Start by making the cross explicit.</h2>
         </div>
         <div class="slide-content-grid">
@@ -390,10 +355,10 @@ loss = F.binary_cross_entropy_with_logits(
         </div>
       </section>
 
-      <!-- SLIDE 10: Transformer-Style Interactions -->
-      <section class="slide" id="slide-10">
+      <!-- SLIDE 9: Transformer-Style Interactions -->
+      <section class="slide" id="slide-9">
         <div class="slide-header">
-          <span class="slide-tag">10. Attention Interactions</span>
+          <span class="slide-tag">09. Attention Interactions</span>
           <h2>Represent features as tokens, then let attention mix them.</h2>
         </div>
         <div class="slide-content-grid">
@@ -441,10 +406,10 @@ loss = F.binary_cross_entropy_with_logits(
         </div>
       </section>
 
-      <!-- SLIDE 11: Multi-Task Value Model -->
-      <section class="slide" id="slide-11">
+      <!-- SLIDE 10: Multi-Task Value Model -->
+      <section class="slide" id="slide-10">
         <div class="slide-header">
-          <span class="slide-tag">11. Multi-Task</span>
+          <span class="slide-tag">10. Multi-Task</span>
           <h2>One shared representation can feed multiple task heads.</h2>
         </div>
         <div class="slide-content-grid">
@@ -487,10 +452,10 @@ vm_score = (probs * task_values).sum(dim=-<span class="num">1</span>) <span clas
         </div>
       </section>
 
-      <!-- SLIDE 12: Global MMoE -->
-      <section class="slide" id="slide-12">
+      <!-- SLIDE 11: Global MMoE -->
+      <section class="slide" id="slide-11">
         <div class="slide-header">
-          <span class="slide-tag">12. Global MMoE</span>
+          <span class="slide-tag">11. Global MMoE</span>
           <h2>Global MMoE learns task-choice routing with row-stable weights.</h2>
         </div>
         <div class="slide-content-grid">
@@ -535,10 +500,10 @@ vm_score = (probs * task_values).sum(dim=-<span class="num">1</span>) <span clas
         </div>
       </section>
 
-      <!-- SLIDE 13: Global MMoE Routing -->
-      <section class="slide" id="slide-13">
+      <!-- SLIDE 12: Global MMoE Routing -->
+      <section class="slide" id="slide-12">
         <div class="slide-header">
-          <span class="slide-tag">13. Routing Map</span>
+          <span class="slide-tag">12. Routing Map</span>
           <h2>Experts produce different outputs; each task learns which mix to use.</h2>
         </div>
         <div class="slide-content-full">
@@ -624,10 +589,10 @@ vm_score = (probs * task_values).sum(dim=-<span class="num">1</span>) <span clas
         </div>
       </section>
 
-      <!-- SLIDE 14: Row-Conditioned MMoE -->
-      <section class="slide" id="slide-14">
+      <!-- SLIDE 13: Row-Conditioned MMoE -->
+      <section class="slide" id="slide-13">
         <div class="slide-header">
-          <span class="slide-tag">14. Dynamic MMoE</span>
+          <span class="slide-tag">13. Dynamic MMoE</span>
           <h2>Row-conditioned MMoE makes the expert mixture example-specific.</h2>
         </div>
         <div class="slide-content-grid">
@@ -670,10 +635,10 @@ vm_score = (probs * task_values).sum(dim=-<span class="num">1</span>) <span clas
         </div>
       </section>
 
-      <!-- SLIDE 15: Embedding Features -->
-      <section class="slide" id="slide-15">
+      <!-- SLIDE 14: Embedding Features -->
+      <section class="slide" id="slide-14">
         <div class="slide-header">
-          <span class="slide-tag">15. Feature Embeddings</span>
+          <span class="slide-tag">14. Feature Embeddings</span>
           <h2>Domain adapters project embeddings before concatenation.</h2>
         </div>
         <div class="slide-content-grid">
@@ -722,10 +687,10 @@ vm_score = (probs * task_values).sum(dim=-<span class="num">1</span>) <span clas
         </div>
       </section>
 
-      <!-- SLIDE 16: Sequence Embeddings -->
-      <section class="slide" id="slide-16">
+      <!-- SLIDE 15: Sequence Embeddings -->
+      <section class="slide" id="slide-15">
         <div class="slide-header">
-          <span class="slide-tag">16. Sequences</span>
+          <span class="slide-tag">15. Sequences</span>
           <h2>The first useful sequence feature is often masked mean pooling.</h2>
         </div>
         <div class="slide-content-grid">
@@ -761,10 +726,10 @@ h = torch.cat(
         </div>
       </section>
 
-      <!-- SLIDE 17: Time-Sliced Pooling -->
-      <section class="slide" id="slide-17">
+      <!-- SLIDE 16: Time-Sliced Pooling -->
+      <section class="slide" id="slide-16">
         <div class="slide-header">
-          <span class="slide-tag">17. Time-Sliced Pooling</span>
+          <span class="slide-tag">16. Time-Sliced Pooling</span>
           <h2>A strong practical extension: pool history by recency bucket.</h2>
         </div>
         <div class="slide-content-grid">
@@ -808,10 +773,10 @@ time_sliced = torch.cat(
         </div>
       </section>
 
-      <!-- SLIDE 18: Target Attention -->
-      <section class="slide" id="slide-18">
+      <!-- SLIDE 17: Target Attention -->
+      <section class="slide" id="slide-17">
         <div class="slide-header">
-          <span class="slide-tag">18. Target Attention</span>
+          <span class="slide-tag">17. Target Attention</span>
           <h2>Now ask which history events matter for this target.</h2>
         </div>
         <div class="slide-content-grid">
@@ -870,10 +835,10 @@ time_sliced = torch.cat(
         </div>
       </section>
 
-      <!-- SLIDE 19: Target Attention Code -->
-      <section class="slide" id="slide-19">
+      <!-- SLIDE 18: Target Attention Code -->
+      <section class="slide" id="slide-18">
         <div class="slide-header">
-          <span class="slide-tag">19. Target Attention Code</span>
+          <span class="slide-tag">18. Target Attention Code</span>
           <h2>The definitional PyTorch version.</h2>
         </div>
         <div class="slide-content-grid">
@@ -909,10 +874,10 @@ time_sliced = torch.cat(
         </div>
       </section>
 
-      <!-- SLIDE 20: Softmax vs Sigmoid -->
-      <section class="slide" id="slide-20">
+      <!-- SLIDE 19: Softmax vs Sigmoid -->
+      <section class="slide" id="slide-19">
         <div class="slide-header">
-          <span class="slide-tag">20. Attention Gating</span>
+          <span class="slide-tag">19. Attention Gating</span>
           <h2>Softmax chooses among history; sigmoid can reject all history.</h2>
         </div>
         <div class="slide-content-grid" style="grid-template-columns: 1fr 1fr;">
@@ -939,10 +904,10 @@ gate_strength = gates.sum(
         </div>
       </section>
 
-      <!-- SLIDE 21: Putting It Together -->
-      <section class="slide" id="slide-21">
+      <!-- SLIDE 20: Putting It Together -->
+      <section class="slide" id="slide-20">
         <div class="slide-header">
-          <span class="slide-tag">21. Full Architecture</span>
+          <span class="slide-tag">20. Full Architecture</span>
           <h2>A modern ranking model layers these ideas.</h2>
         </div>
         <div class="slide-content-grid">
@@ -978,10 +943,10 @@ gate_strength = gates.sum(
         </div>
       </section>
 
-      <!-- SLIDE 22: Close -->
-      <section class="slide" id="slide-22">
+      <!-- SLIDE 21: Close -->
+      <section class="slide" id="slide-21">
         <div class="slide-header">
-          <span class="slide-tag">22. Conclusion</span>
+          <span class="slide-tag">21. Conclusion</span>
           <h2>The core ranking loop stays simple.</h2>
         </div>
         <div class="slide-content-grid">
@@ -1019,6 +984,7 @@ gate_strength = gates.sum(
           </div>
         </div>
       </section>
+
 
     </main>
 
