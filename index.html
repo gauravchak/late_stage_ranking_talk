@@ -213,8 +213,8 @@ loss = -(rho * observed_rewards).mean() <span class="shape-badge">Scalar loss</s
           </div>
           <div class="visualizer-col">
             <pre data-lang="python"><code><span class="cm"># --- TRAINING STAGE ---</span>
-<span class="cm"># dense_x: [B, F] (dense features), targets: [B, T] (binary labels)</span>
-logits = model(dense_x) <span class="shape-badge">Shape: [B, T]</span>
+<span class="cm"># features: [B, F] (dense features), targets: [B, T] (binary labels)</span>
+logits = model(features) <span class="shape-badge">Shape: [B, T]</span>
 
 <span class="cm"># Train with BCE with Logits for stable gradients</span>
 loss = F.<span class="fn">binary_cross_entropy_with_logits</span>(
@@ -456,7 +456,7 @@ ranked_ids = <span class="fn">value_model</span>(probs) <span class="shape-badge
                   <!-- Input Node (White background for high visibility) -->
                   <g>
                     <circle cx="40" cy="75" r="20" fill="#ffffff" stroke="var(--accent-blue)" stroke-width="2" />
-                    <text text-anchor="middle" x="40" y="78" font-size="9" font-weight="bold" fill="var(--text-primary)">dense_x</text>
+                    <text text-anchor="middle" x="40" y="78" font-size="9" font-weight="bold" fill="var(--text-primary)">features</text>
                     <text text-anchor="middle" x="40" y="88" font-size="7" fill="var(--text-muted)">[B, F]</text>
                   </g>
 
@@ -496,12 +496,12 @@ ranked_ids = <span class="fn">value_model</span>(probs) <span class="shape-badge
         )
         <span class="self">self</span>.heads = nn.Linear(hidden_dim, num_tasks)
         
-    <span class="kw">def</span> <span class="fn">forward</span>(<span class="self">self</span>, dense_x):
-        h = <span class="self">self</span>.backbone(dense_x)      <span class="shape-badge">Shared: [B, H]</span>
+    <span class="kw">def</span> <span class="fn">forward</span>(<span class="self">self</span>, features):
+        h = <span class="self">self</span>.backbone(features)      <span class="shape-badge">Shared: [B, H]</span>
         <span class="kw">return</span> <span class="self">self</span>.heads(h)            <span class="shape-badge">Logits: [B, T]</span>
 
 <span class="cm"># --- TRAINING STAGE ---</span>
-logits = model(dense_x)
+logits = model(features)
 loss = F.<span class="fn">binary_cross_entropy_with_logits</span>(
     logits, targets.<span class="fn">float</span>()
 )                                       <span class="shape-badge">Loss: [1]</span></code></pre>
@@ -561,7 +561,7 @@ loss = F.<span class="fn">binary_cross_entropy_with_logits</span>(
                   <!-- Input Node (White background) -->
                   <g>
                     <circle cx="40" cy="75" r="20" fill="#ffffff" stroke="var(--accent-blue)" stroke-width="2" />
-                    <text text-anchor="middle" x="40" y="78" font-size="9" font-weight="bold" fill="var(--text-primary)">dense_x</text>
+                    <text text-anchor="middle" x="40" y="78" font-size="9" font-weight="bold" fill="var(--text-primary)">features</text>
                     <text text-anchor="middle" x="40" y="88" font-size="7" fill="var(--text-muted)">[B, F]</text>
                   </g>
 
@@ -611,8 +611,8 @@ loss = F.<span class="fn">binary_cross_entropy_with_logits</span>(
                 nn.Linear(tower_dim, <span class="num">1</span>)
             ) <span class="kw">for</span> _ <span class="kw">in</span> <span class="kw">range</span>(num_tasks)
         ])
-    <span class="kw">def</span> <span class="fn">forward</span>(<span class="self">self</span>, dense_x):
-        h_shared = <span class="self">self</span>.shared_bottom(dense_x) <span class="shape-badge">Shared: [B, H_shared]</span>
+    <span class="kw">def</span> <span class="fn">forward</span>(<span class="self">self</span>, features):
+        h_shared = <span class="self">self</span>.shared_bottom(features) <span class="shape-badge">Shared: [B, H_shared]</span>
         logits = [tower(h_shared) <span class="kw">for</span> tower <span class="kw">in</span> <span class="self">self</span>.towers]
         <span class="kw">return</span> torch.cat(logits, dim=-<span class="num">1</span>)        <span class="shape-badge">Logits: [B, T]</span></code></pre>
           </div>
@@ -846,8 +846,8 @@ loss = F.<span class="fn">binary_cross_entropy_with_logits</span>(
             nn.SiLU()
         )
         <span class="self">self</span>.head = nn.Linear(<span class="num">2</span> * hidden_dim, <span class="num">1</span>)
-    <span class="kw">def</span> <span class="fn">forward</span>(<span class="self">self</span>, dense_x, emb):
-        dense_h = <span class="self">self</span>.dense_mlp(dense_x) <span class="shape-badge">Dense: [B, H]</span>
+    <span class="kw">def</span> <span class="fn">forward</span>(<span class="self">self</span>, features, emb):
+        dense_h = <span class="self">self</span>.dense_mlp(features) <span class="shape-badge">Dense: [B, H]</span>
         emb_h = <span class="self">self</span>.emb_adapter(emb)     <span class="shape-badge">Embedding: [B, H]</span>
         h = torch.cat([dense_h, emb_h], dim=-<span class="num">1</span>) <span class="shape-badge">Concat: [B, 2H]</span>
         <span class="kw">return</span> <span class="self">self</span>.head(h).squeeze(-<span class="num">1</span>)</code></pre>
