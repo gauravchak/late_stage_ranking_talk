@@ -145,6 +145,14 @@ header {
   color: var(--accent-blue);
 }
 
+.logo-mobile {
+  display: none;
+}
+
+.logo-desktop {
+  display: inline;
+}
+
 .progress-container {
   display: flex;
   align-items: center;
@@ -839,6 +847,15 @@ footer {
   }
   .slide h2 {
     font-size: 24px;
+  }
+}
+
+@media (max-width: 768px) {
+  .logo-desktop {
+    display: none;
+  }
+  .logo-mobile {
+    display: inline;
   }
 }
 
