@@ -80,9 +80,14 @@
             
             <p>In this decoupled framing, the ranking model itself performs <strong>no ranking</strong>:</p>
             <ul class="feature-list purple">
-              <li><strong>Estimation Only:</strong> LSR ingests user and candidate features $[B, F]$ and produces statistical predictions of task events: $P(\text{click}), P(\text{comment}), P(\text{share}), P(\text{hide})$.</li>
-              <li><strong>Separation of Concerns:</strong> The Value Model (VM) team independently optimizes the utility function (often using offline data analysis) to drive long-term rewards like retention and DAU.</li>
-              <li><strong>Decoupled Ranking:</strong> The VM team combines predictions (e.g., $w_1 P(\text{click}) + w_2 P(\text{comment}) - w_3 P(\text{hide})$) and ranks candidates however they choose.</li>
+              <li><strong>Estimation Only:</strong> LSR ingests user and candidate features $[B, F]$ and produces statistical predictions of task events: $P(\text{Watch30s}), P(\text{WatchComplete}), P(\text{Like}), P(\text{Share}), P(\text{Exit\_Feed})$.</li>
+              <li><strong>Separation of Concerns:</strong> The Value Model (VM) team independently optimizes the utility function (often using offline data analysis) to drive long-term rewards.</li>
+              <li><strong>Decoupled Ranking:</strong> The VM team combines predictions into a utility formula, e.g.:
+                <div class="math-block" style="font-size: 14px; margin: 8px 0; padding: 6px 12px;">
+                  $$\text{Utility} = \frac{(w_1 \cdot P(\text{Watch30s}) + w_2 \cdot P(\text{WatchComplete})) \cdot (w_3 \cdot P(\text{Like}) + w_4 \cdot P(\text{Share}))}{P(\text{Exit\_Feed})}$$
+                </div>
+                The VM team then ranks candidates by this utility however they choose.
+              </li>
             </ul>
           </div>
           <div class="visualizer-col">
@@ -94,12 +99,15 @@
                 <div class="flow-arrow">↓</div>
                 <div class="flow-node highlight-blue" style="width: 100%; text-align: center; background: rgba(37,99,235,0.06); border-color: var(--accent-blue);">
                   <strong>LSR Estimator Model</strong>
-                  <div style="font-size: 10px; margin-top: 4px; color: var(--text-muted);">Task Probability Outputs: [P_click, P_share, P_hide]</div>
+                  <div style="font-size: 9px; margin-top: 4px; color: var(--text-muted); line-height: 1.2;">Outputs: [P_Watch30s, P_WatchComplete, P_Like, P_Share, P_Exit]</div>
                 </div>
                 <div class="flow-arrow">↓</div>
-                <div class="flow-node highlight-teal" style="width: 100%; text-align: center; background: rgba(13,148,136,0.06); border-color: var(--accent-teal);">
+                <div class="flow-node highlight-teal" style="width: 100%; text-align: center; background: rgba(13,148,136,0.06); border-color: var(--accent-teal); padding: 8px;">
                   <strong>Value Model (VM) Logic</strong>
-                  <div style="font-size: 10px; margin-top: 4px; color: var(--text-muted);">w_1 * P_click + w_2 * P_share - w_3 * P_hide</div>
+                  <div style="font-size: 9px; margin-top: 4px; color: var(--text-muted); line-height: 1.2;">
+                    (w_1 * P_Watch30s + w_2 * P_WatchComplete) *<br>
+                    (w_3 * P_Like + w_4 * P_Share) / P_Exit
+                  </div>
                 </div>
                 <div class="flow-arrow">↓</div>
                 <div class="flow-node" style="width: 100%; text-align: center; font-weight: bold; background: rgba(15,23,42,0.05);">Sort Descending & Serve Feed</div>
@@ -402,7 +410,7 @@ loss = F.binary_cross_entropy_with_logits(
         </div>
         <div class="slide-content-grid">
           <div class="narrative-col">
-            <p>A value model often combines several predicted outcomes into the final ranking score: click, conversion, dwell, purchase value, or other business terms.</p>
+            <p>A value model often combines several predicted outcomes into the final ranking score: Like, Watch30s, WatchComplete, Share, and Exit_Feed.</p>
             
             <div class="flow-container">
               <div class="flow-diagram-horizontal">
@@ -531,19 +539,19 @@ vm_score = (probs * task_values).sum(dim=-<span class="num">1</span>) <span clas
                   </thead>
                   <tbody>
                     <tr style="color: var(--accent-blue); font-weight: 600;">
-                      <td>Click</td>
+                      <td>Watch30s</td>
                       <td>0.62</td>
                       <td>0.25</td>
                       <td>0.13</td>
                     </tr>
                     <tr style="color: var(--accent-teal); font-weight: 600;">
-                      <td>Conv</td>
+                      <td>WatchComplete</td>
                       <td>0.10</td>
                       <td>0.58</td>
                       <td>0.32</td>
                     </tr>
                     <tr style="color: var(--accent-purple); font-weight: 600;">
-                      <td>Dwell</td>
+                      <td>Like</td>
                       <td>0.28</td>
                       <td>0.17</td>
                       <td>0.55</td>
@@ -559,15 +567,15 @@ vm_score = (probs * task_values).sum(dim=-<span class="num">1</span>) <span clas
                 <div class="routing-card-title">Task Representations</div>
                 <ul style="list-style: none; padding-left: 0; font-size: 13px; display: flex; flex-direction: column; gap: 8px;">
                   <li>
-                    <strong style="color: var(--accent-blue);">Click repr:</strong><br>
+                    <strong style="color: var(--accent-blue);">Watch30s repr:</strong><br>
                     $0.62 \cdot o_1 + 0.25 \cdot o_2 + 0.13 \cdot o_3$
                   </li>
                   <li>
-                    <strong style="color: var(--accent-teal);">Conversion repr:</strong><br>
+                    <strong style="color: var(--accent-teal);">WatchComplete repr:</strong><br>
                     $0.10 \cdot o_1 + 0.58 \cdot o_2 + 0.32 \cdot o_3$
                   </li>
                   <li>
-                    <strong style="color: var(--accent-purple);">Dwell repr:</strong><br>
+                    <strong style="color: var(--accent-purple);">Like repr:</strong><br>
                     $0.28 \cdot o_1 + 0.17 \cdot o_2 + 0.55 \cdot o_3$
                   </li>
                 </ul>
@@ -789,27 +797,27 @@ time_sliced = torch.cat(
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                   <span style="font-size: 11px; font-weight: bold; color: var(--text-secondary);">Target Query:</span>
                   <select id="select-query-item" class="input-field" style="margin: 0; padding: 4px 8px; font-size: 11px; height: auto; width: 150px; background: rgba(15,23,42,0.05); color: var(--text-primary); border-color: var(--glass-border);">
-                    <option value="headphones">🎧 Sony Headphones</option>
-                    <option value="sneakers">👟 Nike Sneakers</option>
+                    <option value="headphones">🎧 Sony Headphones Video</option>
+                    <option value="sneakers">👟 Nike Sneakers Video</option>
                   </select>
                 </div>
                 
                 <!-- Sequence Line -->
                 <div class="attention-sequence-container" style="display: flex; flex-direction: column; gap: 8px;">
                   <div class="attention-event-card" id="event-1" data-tags="electronics,music">
-                    <span class="event-name">Clicked Laptop</span>
+                    <span class="event-name">Liked Laptop Tech Video</span>
                     <span class="event-weight" id="weight-1">--</span>
                   </div>
                   <div class="attention-event-card" id="event-2" data-tags="entertainment,video">
-                    <span class="event-name">Viewed Movie</span>
+                    <span class="event-name">Watched Movie Trailer</span>
                     <span class="event-weight" id="weight-2">--</span>
                   </div>
                   <div class="attention-event-card" id="event-3" data-tags="sports,apparel">
-                    <span class="event-name">Clicked Gym Shorts</span>
+                    <span class="event-name">Shared Workout Apparel Video</span>
                     <span class="event-weight" id="weight-3">--</span>
                   </div>
                   <div class="attention-event-card" id="event-4" data-tags="masked">
-                    <span class="event-name">Padded Event (Masked)</span>
+                    <span class="event-name">Exit Feed (Masked)</span>
                     <span class="event-weight" id="weight-4">0.00</span>
                   </div>
                 </div>
@@ -911,7 +919,7 @@ gate_strength = gates.sum(
             </div>
             
             <p style="font-size: 14px; margin-bottom: 0;">
-              By organizing dense, sparse, and historical parameters in this structured funnel, the model combines wide-and-deep learning with multi-task gating to predict click and value outcomes.
+              By organizing dense, sparse, and historical parameters in this structured funnel, the model combines wide-and-deep learning with multi-task gating to predict video engagement and value outcomes.
             </p>
           </div>
           <div class="narrative-col" style="display: flex; flex-direction: column; gap: 14px;">
