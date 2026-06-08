@@ -244,22 +244,6 @@ rank_idx = torch.argsort(score, descending=<span class="kw">True</span>)</code><
           </div>
         </div>
       </section>
-          <div class="visualizer-col">
-            <pre data-lang="python"><code><span class="kw">import</span> torch.nn.functional <span class="kw">as</span> F
-<span class="cm"># scores: [B]</span>
-<span class="cm"># labels: [B], bool or 0/1</span>
-<span class="cm"># session_id: [B]</span>
-
-i, j = sample_pairs_with_same_session(session_id)
-score_i = scores[i] <span class="shape-badge">Positive score</span>
-score_j = scores[j] <span class="shape-badge">Negative score</span>
-
-target = (labels[i].float() > labels[j].float()).float()
-logit = score_i - score_j <span class="shape-badge">Difference: [B_pairs]</span>
-loss = F.binary_cross_entropy_with_logits(logit, target)</code></pre>
-          </div>
-        </div>
-      </section>
 
       <!-- SLIDE 6: Pairwise Math -->
       <section class="slide" id="slide-6">
