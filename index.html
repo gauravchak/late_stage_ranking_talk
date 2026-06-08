@@ -406,7 +406,7 @@ ranked_ids = <span class="fn">value_model</span>(probs) <span class="shape-badge
         </div>
       </section>
 
-      <!-- SLIDE 10: Multi-Task -->
+            <!-- SLIDE 10: Multi-Task -->
       <section class="slide" id="slide-10">
         <div class="slide-header">
           <span class="slide-tag">10. Multi-Task</span>
@@ -422,7 +422,7 @@ ranked_ids = <span class="fn">value_model</span>(probs) <span class="shape-badge
             </ul>
           </div>
           <div class="visualizer-col">
-            <!-- Interactive Forward Flow Diagram -->
+            <!-- Mathematically Aligned SVG Diagram -->
             <div class="visualizer-panel" style="margin-bottom: 16px;">
               <div class="panel-header">
                 <span class="panel-title">Multi-Task Forward & Loss Flow</span>
@@ -430,22 +430,12 @@ ranked_ids = <span class="fn">value_model</span>(probs) <span class="shape-badge
               <div class="panel-content" style="padding: 16px; min-height: 180px; display: flex; flex-direction: column; justify-content: center; align-items: center; background: var(--bg-primary);">
                 <svg width="320" height="150" viewBox="0 0 320 150" style="overflow: visible;">
                   <style>
-                    @keyframes pulse-node-mt {
-                      0%, 100% { transform: scale(1); filter: drop-shadow(0 0 2px rgba(37,99,235,0.15)); }
-                      50% { transform: scale(1.04); filter: drop-shadow(0 0 6px rgba(37,99,235,0.3)); }
-                    }
-                    @keyframes pulse-node-teal-mt {
-                      0%, 100% { transform: scale(1); filter: drop-shadow(0 0 2px rgba(13,148,136,0.15)); }
-                      50% { transform: scale(1.04); filter: drop-shadow(0 0 6px rgba(13,148,136,0.3)); }
-                    }
                     @keyframes flow-line-mt {
                       0% { stroke-dashoffset: 20; }
                       100% { stroke-dashoffset: 0; }
                     }
-                    .anim-node-mt { animation: pulse-node-mt 3s infinite ease-in-out; transform-origin: 75px 75px; }
-                    .anim-node-teal-mt { animation: pulse-node-teal-mt 3s infinite ease-in-out 1.5s; transform-origin: 160px 75px; }
-                    .flow-line-mt { stroke: var(--text-muted); stroke-dasharray: 5, 5; animation: flow-line-mt 2s infinite linear; opacity: 0.7; }
-                    .flow-line-active-mt { stroke: var(--accent-blue); stroke-dasharray: 5, 5; animation: flow-line-mt 1.5s infinite linear; }
+                    .flow-line-mt { stroke: var(--text-muted); stroke-dasharray: 4, 4; animation: flow-line-mt 2s infinite linear; opacity: 0.8; }
+                    .flow-line-active-mt { stroke: var(--accent-blue); stroke-dasharray: 4, 4; animation: flow-line-mt 1.5s infinite linear; }
                   </style>
                   
                   <defs>
@@ -457,42 +447,42 @@ ranked_ids = <span class="fn">value_model</span>(probs) <span class="shape-badge
                     </marker>
                   </defs>
 
-                  <!-- Connections -->
-                  <path d="M 100 75 L 125 75" class="flow-line-active-mt" marker-end="url(#arrow-blue-mt)" stroke-width="2" />
-                  <path d="M 195 75 L 245 40" class="flow-line-mt" marker-end="url(#arrow-mt)" stroke-width="1.5" />
-                  <path d="M 195 75 L 245 75" class="flow-line-mt" marker-end="url(#arrow-mt)" stroke-width="1.5" />
-                  <path d="M 195 75 L 245 110" class="flow-line-mt" marker-end="url(#arrow-mt)" stroke-width="1.5" />
+                  <!-- Connections with exact coordinate matches -->
+                  <path d="M 60 75 L 120 75" class="flow-line-active-mt" marker-end="url(#arrow-blue-mt)" stroke-width="2" />
+                  <path d="M 200 75 L 250 37" class="flow-line-mt" marker-end="url(#arrow-mt)" stroke-width="1.5" />
+                  <path d="M 200 75 L 250 75" class="flow-line-mt" marker-end="url(#arrow-mt)" stroke-width="1.5" />
+                  <path d="M 200 75 L 250 113" class="flow-line-mt" marker-end="url(#arrow-mt)" stroke-width="1.5" />
 
-                  <!-- Input Node -->
-                  <g transform="translate(45, 75)" class="anim-node-mt">
-                    <circle r="25" fill="var(--bg-primary)" stroke="var(--accent-blue)" stroke-width="2" />
-                    <text text-anchor="middle" y="4" font-size="10" font-weight="bold" fill="var(--text-primary)">dense_x</text>
-                    <text text-anchor="middle" y="14" font-size="7.5" fill="var(--text-muted)">[B, F]</text>
+                  <!-- Input Node (White background for high visibility) -->
+                  <g>
+                    <circle cx="40" cy="75" r="20" fill="#ffffff" stroke="var(--accent-blue)" stroke-width="2" />
+                    <text text-anchor="middle" x="40" y="78" font-size="9" font-weight="bold" fill="var(--text-primary)">dense_x</text>
+                    <text text-anchor="middle" x="40" y="88" font-size="7" fill="var(--text-muted)">[B, F]</text>
                   </g>
 
-                  <!-- Backbone Node -->
-                  <g transform="translate(160, 75)" class="anim-node-teal-mt">
-                    <rect x="-35" y="-25" width="70" height="50" rx="6" fill="var(--bg-primary)" stroke="var(--accent-teal)" stroke-width="2" />
-                    <text text-anchor="middle" y="-4" font-size="9" font-weight="bold" fill="var(--text-primary)">Shared</text>
-                    <text text-anchor="middle" y="6" font-size="9" font-weight="bold" fill="var(--text-primary)">Backbone</text>
-                    <text text-anchor="middle" y="16" font-size="7.5" fill="var(--text-muted)">h: [B, H]</text>
+                  <!-- Backbone Node (White background) -->
+                  <g>
+                    <rect x="120" y="45" width="80" height="60" rx="6" fill="#ffffff" stroke="var(--accent-teal)" stroke-width="2" />
+                    <text text-anchor="middle" x="160" y="70" font-size="9" font-weight="bold" fill="var(--text-primary)">Shared</text>
+                    <text text-anchor="middle" x="160" y="82" font-size="9" font-weight="bold" fill="var(--text-primary)">Backbone</text>
+                    <text text-anchor="middle" x="160" y="93" font-size="7" fill="var(--text-muted)">h: [B, H]</text>
                   </g>
 
                   <!-- Task Heads -->
                   <!-- Task 1 -->
-                  <g transform="translate(270, 40)">
-                    <rect x="-22" y="-12" width="44" height="24" rx="4" fill="var(--bg-primary)" stroke="var(--text-muted)" stroke-width="1.5" />
-                    <text text-anchor="middle" y="3" font-size="8.5" font-weight="bold" fill="var(--text-primary)">Like</text>
+                  <g>
+                    <rect x="250" y="25" width="50" height="24" rx="4" fill="#ffffff" stroke="var(--text-muted)" stroke-width="1.5" />
+                    <text text-anchor="middle" x="275" y="40" font-size="8" font-weight="bold" fill="var(--text-primary)">Like</text>
                   </g>
                   <!-- Task 2 -->
-                  <g transform="translate(270, 75)">
-                    <rect x="-22" y="-12" width="44" height="24" rx="4" fill="var(--bg-primary)" stroke="var(--text-muted)" stroke-width="1.5" />
-                    <text text-anchor="middle" y="3" font-size="8.5" font-weight="bold" fill="var(--text-primary)">Watch30s</text>
+                  <g>
+                    <rect x="250" y="63" width="50" height="24" rx="4" fill="#ffffff" stroke="var(--text-muted)" stroke-width="1.5" />
+                    <text text-anchor="middle" x="275" y="78" font-size="8" font-weight="bold" fill="var(--text-primary)">Watch30s</text>
                   </g>
                   <!-- Task 3 -->
-                  <g transform="translate(270, 110)">
-                    <rect x="-22" y="-12" width="44" height="24" rx="4" fill="var(--bg-primary)" stroke="var(--text-muted)" stroke-width="1.5" />
-                    <text text-anchor="middle" y="3" font-size="8.5" font-weight="bold" fill="var(--text-primary)">Share</text>
+                  <g>
+                    <rect x="250" y="101" width="50" height="24" rx="4" fill="#ffffff" stroke="var(--text-muted)" stroke-width="1.5" />
+                    <text text-anchor="middle" x="275" y="116" font-size="8" font-weight="bold" fill="var(--text-primary)">Share</text>
                   </g>
                 </svg>
               </div>
@@ -519,7 +509,7 @@ loss = F.<span class="fn">binary_cross_entropy_with_logits</span>(
         </div>
       </section>
 
-      <!-- SLIDE 11: Shared-Bottom Model -->
+            <!-- SLIDE 11: Shared-Bottom Model -->
       <section class="slide" id="slide-11">
         <div class="slide-header">
           <span class="slide-tag">11. Shared Bottom</span>
@@ -536,6 +526,7 @@ loss = F.<span class="fn">binary_cross_entropy_with_logits</span>(
             </ul>
           </div>
           <div class="visualizer-col">
+            <!-- Mathematically Aligned Shared Bottom SVG -->
             <div class="visualizer-panel" style="margin-bottom: 16px;">
               <div class="panel-header">
                 <span class="panel-title">Shared-Bottom with Task-Specific Towers</span>
@@ -543,67 +534,57 @@ loss = F.<span class="fn">binary_cross_entropy_with_logits</span>(
               <div class="panel-content" style="padding: 16px; min-height: 180px; display: flex; flex-direction: column; justify-content: center; align-items: center; background: var(--bg-primary);">
                 <svg width="320" height="150" viewBox="0 0 320 150" style="overflow: visible;">
                   <style>
-                    @keyframes pulse-node-sb {
-                      0%, 100% { transform: scale(1); filter: drop-shadow(0 0 2px rgba(37,99,235,0.15)); }
-                      50% { transform: scale(1.04); filter: drop-shadow(0 0 6px rgba(37,99,235,0.3)); }
+                    @keyframes flow-line-sb {
+                      0% { stroke-dashoffset: 20; }
+                      100% { stroke-dashoffset: 0; }
                     }
-                    @keyframes pulse-node-teal-sb {
-                      0%, 100% { transform: scale(1); filter: drop-shadow(0 0 2px rgba(13,148,136,0.15)); }
-                      50% { transform: scale(1.04); filter: drop-shadow(0 0 6px rgba(13,148,136,0.3)); }
-                    }
-                    @keyframes pulse-node-purple-sb {
-                      0%, 100% { transform: scale(1); filter: drop-shadow(0 0 2px rgba(168,85,247,0.15)); }
-                      50% { transform: scale(1.04); filter: drop-shadow(0 0 6px rgba(168,85,247,0.3)); }
-                    }
-                    .anim-node-sb { animation: pulse-node-sb 3s infinite ease-in-out; transform-origin: 75px 75px; }
-                    .anim-node-teal-sb { animation: pulse-node-teal-sb 3s infinite ease-in-out 1.5s; transform-origin: 130px 75px; }
-                    .anim-node-purple-sb { animation: pulse-node-purple-sb 3s infinite ease-in-out; }
+                    .flow-line-sb { stroke: var(--text-muted); stroke-dasharray: 4, 4; animation: flow-line-sb 2s infinite linear; opacity: 0.8; }
+                    .flow-line-active-sb { stroke: var(--accent-blue); stroke-dasharray: 4, 4; animation: flow-line-sb 1.5s infinite linear; }
                   </style>
 
-                  <!-- Connections -->
-                  <path d="M 75 75 L 100 75" class="flow-line-active-mt" marker-end="url(#arrow-blue-mt)" stroke-width="2" />
-                  
-                  <path d="M 160 75 M 160 65 L 195 40" class="flow-line-mt" marker-end="url(#arrow-mt)" stroke-width="1.5" />
-                  <path d="M 160 75 M 160 85 L 195 110" class="flow-line-mt" marker-end="url(#arrow-mt)" stroke-width="1.5" />
-                  
-                  <path d="M 235 40 L 255 40" class="flow-line-active-mt" marker-end="url(#arrow-blue-mt)" stroke-width="1.5" />
-                  <path d="M 235 110 L 255 110" class="flow-line-active-mt" marker-end="url(#arrow-blue-mt)" stroke-width="1.5" />
+                  <!-- Connections with exact coordinates -->
+                  <path d="M 60 75 L 110 75" class="flow-line-active-sb" marker-end="url(#arrow-blue-mt)" stroke-width="2" />
+                  <path d="M 180 65 L 215 40" class="flow-line-sb" marker-end="url(#arrow-mt)" stroke-width="1.5" />
+                  <path d="M 180 85 L 215 110" class="flow-line-sb" marker-end="url(#arrow-mt)" stroke-width="1.5" />
+                  <path d="M 260 40 L 285 40" class="flow-line-active-sb" marker-end="url(#arrow-blue-mt)" stroke-width="1.5" />
+                  <path d="M 260 110 L 285 110" class="flow-line-active-sb" marker-end="url(#arrow-blue-mt)" stroke-width="1.5" />
 
-                  <!-- Input Node -->
-                  <g transform="translate(40, 75)" class="anim-node-sb">
-                    <circle r="22" fill="var(--bg-primary)" stroke="var(--accent-blue)" stroke-width="2" />
-                    <text text-anchor="middle" y="4" font-size="9" font-weight="bold" fill="var(--text-primary)">dense_x</text>
+                  <!-- Input Node (White background) -->
+                  <g>
+                    <circle cx="40" cy="75" r="20" fill="#ffffff" stroke="var(--accent-blue)" stroke-width="2" />
+                    <text text-anchor="middle" x="40" y="78" font-size="9" font-weight="bold" fill="var(--text-primary)">dense_x</text>
+                    <text text-anchor="middle" x="40" y="88" font-size="7" fill="var(--text-muted)">[B, F]</text>
                   </g>
 
-                  <!-- Shared Bottom Node -->
-                  <g transform="translate(130, 75)" class="anim-node-teal-sb">
-                    <rect x="-30" y="-22" width="60" height="44" rx="6" fill="var(--bg-primary)" stroke="var(--accent-teal)" stroke-width="2" />
-                    <text text-anchor="middle" y="-2" font-size="8.5" font-weight="bold" fill="var(--text-primary)">Shared</text>
-                    <text text-anchor="middle" y="8" font-size="8.5" font-weight="bold" fill="var(--text-primary)">Bottom</text>
+                  <!-- Shared Bottom Node (White background) -->
+                  <g>
+                    <rect x="110" y="45" width="70" height="60" rx="6" fill="#ffffff" stroke="var(--accent-teal)" stroke-width="2" />
+                    <text text-anchor="middle" x="145" y="71" font-size="9" font-weight="bold" fill="var(--text-primary)">Shared</text>
+                    <text text-anchor="middle" x="145" y="83" font-size="9" font-weight="bold" fill="var(--text-primary)">Bottom</text>
                   </g>
 
-                  <!-- Task-Specific Towers -->
+                  <!-- Task-Specific Towers (White background) -->
                   <!-- Tower 1 -->
-                  <g transform="translate(215, 40)" class="anim-node-purple-sb" style="transform-origin: 215px 40px;">
-                    <rect x="-20" y="-15" width="40" height="30" rx="4" fill="var(--bg-primary)" stroke="var(--accent-purple)" stroke-width="2" />
-                    <text text-anchor="middle" y="-2" font-size="8" font-weight="bold" fill="var(--text-primary)">Tower 1</text>
-                    <text text-anchor="middle" y="8" font-size="7" fill="var(--text-muted)">Watch30s</text>
+                  <g>
+                    <rect x="215" y="25" width="45" height="30" rx="4" fill="#ffffff" stroke="var(--accent-purple)" stroke-width="2" />
+                    <text text-anchor="middle" x="237.5" y="40" font-size="7.5" font-weight="bold" fill="var(--text-primary)">Tower 1</text>
+                    <text text-anchor="middle" x="237.5" y="50" font-size="6.5" fill="var(--text-muted)">Watch30s</text>
                   </g>
                   <!-- Tower 2 -->
-                  <g transform="translate(215, 110)" class="anim-node-purple-sb" style="transform-origin: 215px 110px;">
-                    <rect x="-20" y="-15" width="40" height="30" rx="4" fill="var(--bg-primary)" stroke="var(--accent-purple)" stroke-width="2" />
-                    <text text-anchor="middle" y="-2" font-size="8" font-weight="bold" fill="var(--text-primary)">Tower 2</text>
-                    <text text-anchor="middle" y="8" font-size="7" fill="var(--text-muted)">Like</text>
+                  <g>
+                    <rect x="215" y="95" width="45" height="30" rx="4" fill="#ffffff" stroke="var(--accent-purple)" stroke-width="2" />
+                    <text text-anchor="middle" x="237.5" y="110" font-size="7.5" font-weight="bold" fill="var(--text-primary)">Tower 2</text>
+                    <text text-anchor="middle" x="237.5" y="120" font-size="6.5" fill="var(--text-muted)">Like</text>
                   </g>
 
                   <!-- Outputs -->
-                  <g transform="translate(285, 40)">
-                    <circle r="12" fill="var(--bg-primary)" stroke="var(--text-muted)" stroke-width="1.5" />
-                    <text text-anchor="middle" y="3.5" font-size="8" fill="var(--text-primary)">y1</text>
+                  <g>
+                    <circle cx="295" cy="40" r="10" fill="#ffffff" stroke="var(--text-muted)" stroke-width="1.5" />
+                    <text text-anchor="middle" x="295" y="43" font-size="8" fill="var(--text-primary)">y1</text>
                   </g>
-                  <g transform="translate(285, 110)">
-                    <circle r="12" fill="var(--bg-primary)" stroke="var(--text-muted)" stroke-width="1.5" />
-                    <text text-anchor="middle" y="3.5" font-size="8" fill="var(--text-primary)">y2</text>
+                  <g>
+                    <circle cx="295" cy="110" r="10" fill="#ffffff" stroke="var(--text-muted)" stroke-width="1.5" />
+                    <text text-anchor="middle" x="295" y="113" font-size="8" fill="var(--text-primary)">y2</text>
                   </g>
                 </svg>
               </div>
