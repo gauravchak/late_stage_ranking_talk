@@ -25,11 +25,25 @@
         <div class="logo-icon">R</div>
         <div class="logo-text">Ranking<span>Core</span></div>
       </div>
+      
+      <!-- Architectural breadcrumbs map -->
+      <div class="breadcrumbs-map">
+        <span class="breadcrumb-step active" data-range="1,6">Foundations</span>
+        <span class="breadcrumb-arrow">→</span>
+        <span class="breadcrumb-step" data-range="7,9">Interactions</span>
+        <span class="breadcrumb-arrow">→</span>
+        <span class="breadcrumb-step" data-range="10,13">Multi-Task</span>
+        <span class="breadcrumb-arrow">→</span>
+        <span class="breadcrumb-step" data-range="14,19">Sequence / Attention</span>
+        <span class="breadcrumb-arrow">→</span>
+        <span class="breadcrumb-step" data-range="20,21">Architecture</span>
+      </div>
+
       <div class="progress-container">
         <div class="progress-bar-bg">
           <div class="progress-bar-fill"></div>
         </div>
-        <div class="progress-text">1 / 22</div>
+        <div class="progress-text">1 / 21</div>
       </div>
     </header>
 
@@ -91,7 +105,7 @@
           <div class="visualizer-col">
             <pre data-lang="python"><code><span class="cm"># features: [B, F]</span>
 <span class="cm"># candidates: length B objects aligned with features</span>
-scores = model(features).squeeze(-<span class="num">1</span>)
+scores = model(features).squeeze(-<span class="num">1</span>) <span class="shape-badge">Shape: [B]</span>
 <span class="cm"># [B]</span>
 rank_idx = torch.argsort(scores, descending=<span class="kw">True</span>)
 ranked_candidates = candidates[rank_idx]</code></pre>
@@ -133,8 +147,8 @@ ranked_candidates = candidates[rank_idx]</code></pre>
             nn.LayerNorm(out_dim),
             nn.Sigmoid()
         )
-    <span class="kw">def</span> <span class="fn">forward</span>(<span class="self">self</span>, x):
-        x = <span class="self">self</span>.linear(x)
+    <span class="kw">def</span> <span class="fn">forward</span>(<span class="self">self</span>, x): <span class="cm"># x: [B, in_dim]</span>
+        x = <span class="self">self</span>.linear(x) <span class="shape-badge">Shape: [B, out_dim]</span>
         <span class="kw">return</span> x * <span class="self">self</span>.norm_gate(x)
 
 <span class="kw">class</span> <span class="cls">ValueScorer</span>(nn.Module):
@@ -145,8 +159,8 @@ ranked_candidates = candidates[rank_idx]</code></pre>
             SwishLayerNormBlock(hidden_dim, hidden_dim),
             nn.Linear(hidden_dim, <span class="num">1</span>)
         )
-    <span class="kw">def</span> <span class="fn">forward</span>(<span class="self">self</span>, dense_x):
-        <span class="kw">return</span> <span class="self">self</span>.net(dense_x).squeeze(-<span class="num">1</span>)</code></pre>
+    <span class="kw">def</span> <span class="fn">forward</span>(<span class="self">self</span>, dense_x): <span class="shape-badge">dense_x: [B, F]</span>
+        <span class="kw">return</span> <span class="self">self</span>.net(dense_x).squeeze(-<span class="num">1</span>) <span class="shape-badge">Shape: [B]</span></code></pre>
           </div>
         </div>
       </section>
@@ -170,12 +184,12 @@ ranked_candidates = candidates[rank_idx]</code></pre>
           <div class="visualizer-col">
             <pre data-lang="python"><code><span class="cm"># dense_x: [B, F]</span>
 <span class="cm"># label: [B], e.g., conversion value</span>
-score = value_model(dense_x) <span class="cm"># [B]</span>
+score = value_model(dense_x) <span class="shape-badge">Shape: [B]</span>
 
 <span class="cm"># Pointwise MSE loss example</span>
 loss = torch.nn.functional.mse_loss(
     score, label.float()
-)
+) <span class="shape-badge">Scalar loss</span>
 
 <span class="cm"># Serving sorts by score</span>
 rank_idx = torch.argsort(score, descending=<span class="kw">True</span>)</code></pre>
@@ -191,19 +205,53 @@ rank_idx = torch.argsort(score, descending=<span class="kw">True</span>)</code><
         </div>
         <div class="slide-content-grid">
           <div class="narrative-col">
-            <div class="pairwise-diagram">
-              <div class="pairwise-session-box">
-                <span style="font-size: 11px; font-weight:bold;">Session Context</span>
-                <div class="pairwise-item pos">Positive Item (i)</div>
-                <div class="pairwise-item neg">Negative Item (j)</div>
-              </div>
-              <div class="flow-arrow">→</div>
-              <div class="flow-node">score_i - score_j</div>
-              <div class="flow-arrow">→</div>
-              <div class="flow-node highlight-blue">Pairwise BCE</div>
-            </div>
-            
             <p><strong>Context Matching:</strong> Pairs should be constructed inside the same ranking context. A positive from one session should not be compared to a negative from an unrelated session.</p>
+            
+            <div class="visualizer-panel" style="margin-top: 15px;">
+              <div class="panel-header">
+                <span class="panel-title">Interactive Gradient Playground</span>
+              </div>
+              <div class="panel-content" style="padding: 16px; display: flex; flex-direction: column; gap: 12px; min-height: 250px; justify-content: space-between;">
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+                  <div class="mode-selector" style="display: flex; gap: 4px; background: rgba(15,23,42,0.05); padding: 2px; border-radius: 6px;">
+                    <button class="pq-visualizer-step-btn active" id="btn-mode-pointwise" style="margin:0; padding: 4px 10px; font-size:11px; border-radius:4px;">Pointwise (MSE)</button>
+                    <button class="pq-visualizer-step-btn" id="btn-mode-pairwise" style="margin:0; padding: 4px 10px; font-size:11px; border-radius:4px;">Pairwise (BCE)</button>
+                  </div>
+                  <button class="btn-nav" id="btn-apply-gradient" style="width:auto; padding: 6px 12px; font-size: 11px; height:auto; font-weight:600; background: var(--accent-blue); color: #fff;">Apply Gradients</button>
+                </div>
+                
+                <!-- Score Axis Container -->
+                <div class="playground-axis-container" style="position: relative; height: 140px; background: rgba(15,23,42,0.02); border-radius: 8px; border: 1px dashed var(--glass-border); padding: 10px;">
+                  <!-- Vertical Axis line -->
+                  <div style="position: absolute; left: 50%; top: 10px; bottom: 10px; width: 2px; background: rgba(15,23,42,0.1); transform: translateX(-50%);"></div>
+                  <!-- Axis Labels -->
+                  <div style="position: absolute; left: 15px; top: 10px; font-size: 10px; font-family: var(--font-mono); color: var(--text-muted);">Score = 1.0</div>
+                  <div style="position: absolute; left: 15px; bottom: 10px; font-size: 10px; font-family: var(--font-mono); color: var(--text-muted);">Score = 0.0</div>
+                  
+                  <!-- Items (Absolute positioned on the axis) -->
+                  <div class="playground-item clicked" id="item-a" style="position: absolute; left: 50%; top: 40%; transform: translateX(-50%); transition: top 0.6s cubic-bezier(0.16, 1, 0.3, 1);">
+                    <span class="badge">Pos A</span>
+                    <span class="gradient-arrow arrow-up">↑</span>
+                  </div>
+                  <div class="playground-item clicked" id="item-b" style="position: absolute; left: 50%; top: 60%; transform: translateX(-50%); transition: top 0.6s cubic-bezier(0.16, 1, 0.3, 1);">
+                    <span class="badge">Pos B</span>
+                    <span class="gradient-arrow arrow-up">↑</span>
+                  </div>
+                  <div class="playground-item unclicked" id="item-c" style="position: absolute; left: 50%; top: 30%; transform: translateX(-50%); transition: top 0.6s cubic-bezier(0.16, 1, 0.3, 1);">
+                    <span class="badge">Neg C</span>
+                    <span class="gradient-arrow arrow-down">↓</span>
+                  </div>
+                  <div class="playground-item unclicked" id="item-d" style="position: absolute; left: 50%; top: 50%; transform: translateX(-50%); transition: top 0.6s cubic-bezier(0.16, 1, 0.3, 1);">
+                    <span class="badge">Neg D</span>
+                    <span class="gradient-arrow arrow-down">↓</span>
+                  </div>
+                </div>
+                
+                <p id="playground-desc" style="font-size: 11px; color: var(--text-secondary); margin: 0; line-height: 1.3;">
+                  Pointwise fits labels directly: items C and D (unclicked) are pulled to 0.0, positive items A and B to 1.0, regardless of the relative order inside the session.
+                </p>
+              </div>
+            </div>
           </div>
           <div class="visualizer-col">
             <pre data-lang="python"><code><span class="kw">import</span> torch.nn.functional <span class="kw">as</span> F
@@ -212,11 +260,11 @@ rank_idx = torch.argsort(score, descending=<span class="kw">True</span>)</code><
 <span class="cm"># session_id: [B]</span>
 
 i, j = sample_pairs_with_same_session(session_id)
-score_i = scores[i]
-score_j = scores[j]
+score_i = scores[i] <span class="shape-badge">Positive score</span>
+score_j = scores[j] <span class="shape-badge">Negative score</span>
 
 target = (labels[i].float() > labels[j].float()).float()
-logit = score_i - score_j
+logit = score_i - score_j <span class="shape-badge">Difference: [B_pairs]</span>
 loss = F.binary_cross_entropy_with_logits(logit, target)</code></pre>
           </div>
         </div>
@@ -249,7 +297,7 @@ loss = F.binary_cross_entropy_with_logits(logit, target)</code></pre>
           </div>
           <div class="visualizer-col">
             <pre data-lang="python"><code><span class="cm"># z = score_pos - score_neg</span>
-target = torch.ones_like(z)
+target = torch.ones_like(z) <span class="shape-badge">Shape: [B_pairs]</span>
 loss = F.binary_cross_entropy_with_logits(
     z, target
 )</code></pre>
@@ -322,13 +370,13 @@ loss = F.binary_cross_entropy_with_logits(
             nn.Linear(hidden_dim, <span class="num">1</span>)
         )
     <span class="kw">def</span> <span class="fn">forward</span>(<span class="self">self</span>, user_x, item_x):
-        user_h = <span class="self">self</span>.user_proj(user_x) <span class="cm"># [B, H]</span>
-        item_h = <span class="self">self</span>.item_proj(item_x) <span class="cm"># [B, H]</span>
-        cross = user_h * item_h          <span class="cm"># [B, H]</span>
+        user_h = <span class="self">self</span>.user_proj(user_x) <span class="shape-badge">Shape: [B, H]</span>
+        item_h = <span class="self">self</span>.item_proj(item_x) <span class="shape-badge">Shape: [B, H]</span>
+        cross = user_h * item_h          <span class="shape-badge">Cross: [B, H]</span>
         h = torch.cat(
             [user_h, item_h, cross], dim=-<span class="num">1</span>
-        ) <span class="cm"># [B, 3H]</span>
-        <span class="kw">return</span> <span class="self">self</span>.head(h).squeeze(-<span class="num">1</span>)</code></pre>
+        ) <span class="shape-badge">Concat: [B, 3H]</span>
+        <span class="kw">return</span> <span class="self">self</span>.head(h).squeeze(-<span class="num">1</span>) <span class="shape-badge">Shape: [B]</span></code></pre>
           </div>
         </div>
       </section>
@@ -376,9 +424,9 @@ loss = F.binary_cross_entropy_with_logits(
     <span class="kw">def</span> <span class="fn">forward</span>(<span class="self">self</span>, feature_groups):
         tokens = [<span class="self">self</span>.proj[name](feature_groups[name]) 
                   <span class="kw">for</span> name <span class="kw">in</span> <span class="self">self</span>.proj]
-        x = torch.stack(tokens, dim=<span class="num">1</span>)  <span class="cm"># [B, T, 128]</span>
-        x = <span class="self">self</span>.encoder(x)             <span class="cm"># [B, T, 128]</span>
-        pooled = x.mean(dim=<span class="num">1</span>)          <span class="cm"># [B, 128]</span>
+        x = torch.stack(tokens, dim=<span class="num">1</span>)  <span class="shape-badge">Shape: [B, T, 128]</span>
+        x = <span class="self">self</span>.encoder(x)             <span class="shape-badge">Shape: [B, T, 128]</span>
+        pooled = x.mean(dim=<span class="num">1</span>)          <span class="shape-badge">Pooled: [B, 128]</span>
         <span class="kw">return</span> <span class="self">self</span>.head(pooled).squeeze(-<span class="num">1</span>)</code></pre>
           </div>
         </div>
@@ -419,13 +467,13 @@ loss = F.binary_cross_entropy_with_logits(
         )
         <span class="self">self</span>.heads = nn.Linear(hidden_dim, num_tasks)
     <span class="kw">def</span> <span class="fn">forward</span>(<span class="self">self</span>, dense_x):
-        h = <span class="self">self</span>.backbone(dense_x)      <span class="cm"># [B, H]</span>
-        <span class="kw">return</span> <span class="self">self</span>.heads(h)            <span class="cm"># [B, T]</span>
+        h = <span class="self">self</span>.backbone(dense_x)      <span class="shape-badge">Shared: [B, H]</span>
+        <span class="kw">return</span> <span class="self">self</span>.heads(h)            <span class="shape-badge">Heads: [B, T]</span>
 
 <span class="cm"># At serving:</span>
 logits = model(dense_x)
-probs = torch.sigmoid(logits) <span class="cm"># [B, T]</span>
-vm_score = (probs * task_values).sum(dim=-<span class="num">1</span>)</code></pre>
+probs = torch.sigmoid(logits) <span class="shape-badge">Probs: [B, T]</span>
+vm_score = (probs * task_values).sum(dim=-<span class="num">1</span>) <span class="shape-badge">Score: [B]</span></code></pre>
           </div>
         </div>
       </section>
@@ -467,13 +515,13 @@ vm_score = (probs * task_values).sum(dim=-<span class="num">1</span>)</code></pr
     <span class="kw">def</span> <span class="fn">forward</span>(<span class="self">self</span>, h):
         expert_out = torch.stack(
             [expert(h) <span class="kw">for</span> expert <span class="kw">in</span> <span class="self">self</span>.experts], dim=<span class="num">1</span>
-        ) <span class="cm"># [B, E, D]</span>
+        ) <span class="shape-badge">Experts: [B, E, D]</span>
         weights = torch.softmax(
             <span class="self">self</span>.task_expert_logits, dim=-<span class="num">1</span>
-        ) <span class="cm"># [T, E]</span>
+        ) <span class="shape-badge">Weights: [T, E]</span>
         <span class="kw">return</span> torch.einsum(
             <span class="str">"bed, te->btd"</span>, expert_out, weights
-        ) <span class="cm"># [B, T, D]</span></code></pre>
+        ) <span class="shape-badge">Routing: [B, T, D]</span></code></pre>
           </div>
         </div>
       </section>
@@ -601,66 +649,22 @@ vm_score = (probs * task_values).sum(dim=-<span class="num">1</span>)</code></pr
     <span class="kw">def</span> <span class="fn">forward</span>(<span class="self">self</span>, h):
         expert_out = torch.stack(
             [expert(h) <span class="kw">for</span> expert <span class="kw">in</span> <span class="self">self</span>.experts], dim=<span class="num">1</span>
-        ) <span class="cm"># [B, E, D]</span>
+        ) <span class="shape-badge">Experts: [B, E, D]</span>
         gate_logits = torch.stack(
             [gate(h) <span class="kw">for</span> gate <span class="kw">in</span> <span class="self">self</span>.gates], dim=<span class="num">1</span>
-        ) <span class="cm"># [B, T, E]</span>
+        ) <span class="shape-badge">Gates: [B, T, E]</span>
         gate_weights = torch.softmax(gate_logits, dim=-<span class="num">1</span>)
         <span class="kw">return</span> torch.einsum(
             <span class="str">"bed, bte->btd"</span>, expert_out, gate_weights
-        )</code></pre>
+        ) <span class="shape-badge">Task reps: [B, T, D]</span></code></pre>
           </div>
         </div>
       </section>
 
-      <!-- SLIDE 14: PLE -->
+      <!-- SLIDE 14: Embedding Features -->
       <section class="slide" id="slide-14">
         <div class="slide-header">
-          <span class="slide-tag">14. PLE Architecture</span>
-          <h2>PLE adds task-private experts on top of shared experts.</h2>
-        </div>
-        <div class="slide-content-grid">
-          <div class="narrative-col">
-            <h3>Why private experts help</h3>
-            <ul class="feature-list">
-              <li>Some tasks transfer signal; some tasks conflict (gradient clash).</li>
-              <li>Shared experts learn reusable representations across tasks.</li>
-              <li>Task-private experts shield task-specific behavior from other gradients.</li>
-              <li>Per-task gates choose from a combination of shared + private experts.</li>
-            </ul>
-            
-            <p style="margin-top: 15px; font-size: 14.5px;">
-              PLE is a structured extension of MMoE: it keeps shared capacity for transfer, while giving each task private capacity when gradients disagree.
-            </p>
-          </div>
-          <div class="visualizer-col">
-            <h4 style="margin-bottom: 12px; font-family: var(--font-heading); font-size: 14px;">PLE Expert Distribution</h4>
-            <div class="ple-expert-layout">
-              <div class="ple-expert-column">
-                <div class="ple-expert-header" style="color: var(--accent-purple);">Click Private</div>
-                <div class="ple-expert-box private-click">Click Expert 1</div>
-                <div class="ple-expert-box private-click">Click Expert 2</div>
-              </div>
-              <div class="ple-expert-column">
-                <div class="ple-expert-header" style="color: var(--accent-blue);">Shared</div>
-                <div class="ple-expert-box shared">Shared Expert 1</div>
-                <div class="ple-expert-box shared">Shared Expert 2</div>
-              </div>
-              <div class="ple-expert-column">
-                <div class="ple-expert-header" style="color: var(--accent-teal);">Conv Private</div>
-                <div class="ple-expert-box private-conv">Conv Expert 1</div>
-                <div class="ple-expert-box private-conv">Conv Expert 2</div>
-              </div>
-            </div>
-            <p style="font-size: 12px; color: var(--text-muted); text-align: center;">Task gates combine shared + private expert sub-groups dynamically per sample.</p>
-          </div>
-        </div>
-      </section>
-
-      <!-- SLIDE 15: Embedding Features -->
-      <section class="slide" id="slide-15">
-        <div class="slide-header">
-          <span class="slide-tag">15. Feature Embeddings</span>
+          <span class="slide-tag">14. Feature Embeddings</span>
           <h2>Domain adapters project embeddings before concatenation.</h2>
         </div>
         <div class="slide-content-grid">
@@ -701,18 +705,18 @@ vm_score = (probs * task_values).sum(dim=-<span class="num">1</span>)</code></pr
         )
         <span class="self">self</span>.head = nn.Linear(<span class="num">2</span> * hidden_dim, <span class="num">1</span>)
     <span class="kw">def</span> <span class="fn">forward</span>(<span class="self">self</span>, dense_x, emb):
-        dense_h = <span class="self">self</span>.dense_mlp(dense_x) <span class="cm"># [B, H]</span>
-        emb_h = <span class="self">self</span>.emb_adapter(emb)     <span class="cm"># [B, H]</span>
-        h = torch.cat([dense_h, emb_h], dim=-<span class="num">1</span>)
+        dense_h = <span class="self">self</span>.dense_mlp(dense_x) <span class="shape-badge">Dense: [B, H]</span>
+        emb_h = <span class="self">self</span>.emb_adapter(emb)     <span class="shape-badge">Embedding: [B, H]</span>
+        h = torch.cat([dense_h, emb_h], dim=-<span class="num">1</span>) <span class="shape-badge">Concat: [B, 2H]</span>
         <span class="kw">return</span> <span class="self">self</span>.head(h).squeeze(-<span class="num">1</span>)</code></pre>
           </div>
         </div>
       </section>
 
-      <!-- SLIDE 16: Sequence Embeddings -->
-      <section class="slide" id="slide-16">
+      <!-- SLIDE 15: Sequence Embeddings -->
+      <section class="slide" id="slide-15">
         <div class="slide-header">
-          <span class="slide-tag">16. Sequences</span>
+          <span class="slide-tag">15. Sequences</span>
           <h2>The first useful sequence feature is often masked mean pooling.</h2>
         </div>
         <div class="slide-content-grid">
@@ -732,12 +736,11 @@ vm_score = (probs * task_values).sum(dim=-<span class="num">1</span>)</code></pr
           </div>
           <div class="visualizer-col">
             <pre data-lang="python"><code><span class="kw">def</span> <span class="fn">masked_mean</span>(seq, mask):
-    <span class="cm"># seq: [B, N, D]</span>
-    <span class="cm"># mask: [B, N], True for real history event</span>
+    <span class="cm"># seq: [B, N, D] | mask: [B, N]</span>
     mask_f = mask.float()
-    denom = mask_f.sum(dim=<span class="num">1</span>).clamp_min(<span class="num">1.0</span>)
-    total = (seq * mask_f[:, :, <span class="kw">None</span>]).sum(dim=<span class="num">1</span>)
-    <span class="kw">return</span> total / denom[:, <span class="kw">None</span>] <span class="cm"># [B, D]</span>
+    denom = mask_f.sum(dim=<span class="num">1</span>).clamp_min(<span class="num">1.0</span>) <span class="shape-badge">Shape: [B]</span>
+    total = (seq * mask_f[:, :, <span class="kw">None</span>]).sum(dim=<span class="num">1</span>) <span class="shape-badge">Sum: [B, D]</span>
+    <span class="kw">return</span> total / denom[:, <span class="kw">None</span>] <span class="shape-badge">Mean: [B, D]</span>
 
 <span class="cm"># In model forward:</span>
 history_h = masked_mean(history_seq, history_mask)
@@ -749,10 +752,10 @@ h = torch.cat(
         </div>
       </section>
 
-      <!-- SLIDE 17: Time-Sliced Pooling -->
-      <section class="slide" id="slide-17">
+      <!-- SLIDE 16: Time-Sliced Pooling -->
+      <section class="slide" id="slide-16">
         <div class="slide-header">
-          <span class="slide-tag">17. Time-Sliced Pooling</span>
+          <span class="slide-tag">16. Time-Sliced Pooling</span>
           <h2>A strong practical extension: pool history by recency bucket.</h2>
         </div>
         <div class="slide-content-grid">
@@ -785,21 +788,21 @@ mid_mask = (seq_mask & (age_hours >= <span class="num">24</span>)
             & (age_hours < <span class="num">24</span> * <span class="num">7</span>))
 old_mask = seq_mask & (age_hours >= <span class="num">24</span> * <span class="num">7</span>)
 
-recent_pool = masked_mean(seq, recent_mask) <span class="cm"># [B, D]</span>
-mid_pool = masked_mean(seq, mid_mask)       <span class="cm"># [B, D]</span>
-old_pool = masked_mean(seq, old_mask)       <span class="cm"># [B, D]</span>
+recent_pool = masked_mean(seq, recent_mask) <span class="shape-badge">Recent: [B, D]</span>
+mid_pool = masked_mean(seq, mid_mask)       <span class="shape-badge">Medium: [B, D]</span>
+old_pool = masked_mean(seq, old_mask)       <span class="shape-badge">Old: [B, D]</span>
 
 time_sliced = torch.cat(
     [recent_pool, mid_pool, old_pool], dim=-<span class="num">1</span>
-) <span class="cm"># [B, 3D]</span></code></pre>
+) <span class="shape-badge">Concat: [B, 3D]</span></code></pre>
           </div>
         </div>
       </section>
 
-      <!-- SLIDE 18: Target Attention -->
-      <section class="slide" id="slide-18">
+      <!-- SLIDE 17: Target Attention -->
+      <section class="slide" id="slide-17">
         <div class="slide-header">
-          <span class="slide-tag">18. Target Attention</span>
+          <span class="slide-tag">17. Target Attention</span>
           <h2>Now ask which history events matter for this target.</h2>
         </div>
         <div class="slide-content-grid">
@@ -810,30 +813,47 @@ time_sliced = torch.cat(
               <li><strong>Target Attention</strong> asks whether each history event is relevant to the candidate being ranked now.</li>
             </ul>
             
-            <p style="margin-top: 15px;">
-              For instance, if the candidate item is a laptop, target attention highlights historical laptop clicks while ignoring clothes or food purchases.
-            </p>
-            
-            <div class="math-block">
+            <div class="math-block" style="margin-top: 15px;">
               $$\text{logit}[b, n] = \frac{\text{query}(\text{target}[b]) \cdot \text{key}(\text{seq}[b, n])}{\sqrt{D}}$$
             </div>
           </div>
           <div class="visualizer-col">
-            <div class="glass-card highlight">
-              <h4 style="margin-bottom: 12px; font-family: var(--font-heading); font-size: 14px;">Dot-Product Matching</h4>
-              <div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                  <strong>Target item [B, D]</strong>
-                  <span>→ Query →</span>
-                  <span style="color: var(--accent-blue);">Q</span>
+            <div class="visualizer-panel">
+              <div class="panel-header">
+                <span class="panel-title">Interactive Target Attention</span>
+              </div>
+              <div class="panel-content" style="padding: 16px; min-height: 250px; display: flex; flex-direction: column; justify-content: space-between;">
+                <!-- Query Selector -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                  <span style="font-size: 11px; font-weight: bold; color: var(--text-secondary);">Target Query:</span>
+                  <select id="select-query-item" class="input-field" style="margin: 0; padding: 4px 8px; font-size: 11px; height: auto; width: 150px; background: rgba(15,23,42,0.05); color: var(--text-primary); border-color: var(--glass-border);">
+                    <option value="headphones">🎧 Sony Headphones</option>
+                    <option value="sneakers">👟 Nike Sneakers</option>
+                  </select>
                 </div>
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                  <strong>History [B, N, D]</strong>
-                  <span>→ Keys →</span>
-                  <span style="color: var(--accent-teal);">K</span>
+                
+                <!-- Sequence Line -->
+                <div class="attention-sequence-container" style="display: flex; flex-direction: column; gap: 8px;">
+                  <div class="attention-event-card" id="event-1" data-tags="electronics,music">
+                    <span class="event-name">Clicked Laptop</span>
+                    <span class="event-weight" id="weight-1">--</span>
+                  </div>
+                  <div class="attention-event-card" id="event-2" data-tags="entertainment,video">
+                    <span class="event-name">Viewed Movie</span>
+                    <span class="event-weight" id="weight-2">--</span>
+                  </div>
+                  <div class="attention-event-card" id="event-3" data-tags="sports,apparel">
+                    <span class="event-name">Clicked Gym Shorts</span>
+                    <span class="event-weight" id="weight-3">--</span>
+                  </div>
+                  <div class="attention-event-card" id="event-4" data-tags="masked">
+                    <span class="event-name">Padded Event (Masked)</span>
+                    <span class="event-weight" id="weight-4">0.00</span>
+                  </div>
                 </div>
-                <div style="border-top: 1px solid var(--glass-border); padding-top: 8px; font-weight: bold; text-align: center; color: var(--accent-purple);">
-                  Q * K / sqrt(D) → Logits [B, N] → Weights
+                
+                <div style="display: flex; justify-content: flex-end; margin-top: 10px;">
+                  <button class="btn-nav" id="btn-run-attention" style="width: auto; padding: 6px 12px; font-size: 11px; height: auto; font-weight: 600; background: var(--accent-blue); color: #fff;">Compute Attention</button>
                 </div>
               </div>
             </div>
@@ -841,10 +861,10 @@ time_sliced = torch.cat(
         </div>
       </section>
 
-      <!-- SLIDE 19: Target Attention Code -->
-      <section class="slide" id="slide-19">
+      <!-- SLIDE 18: Target Attention Code -->
+      <section class="slide" id="slide-18">
         <div class="slide-header">
-          <span class="slide-tag">19. Target Attention Code</span>
+          <span class="slide-tag">18. Target Attention Code</span>
           <h2>The definitional PyTorch version.</h2>
         </div>
         <div class="slide-content-grid">
@@ -872,18 +892,18 @@ time_sliced = torch.cat(
         <span class="self">self</span>.v_proj = nn.Linear(dim, dim)
         
     <span class="kw">def</span> <span class="fn">logits</span>(<span class="self">self</span>, target, seq, seq_mask):
-        q = <span class="self">self</span>.q_proj(target)[:, <span class="kw">None</span>, :] <span class="cm"># [B, 1, D]</span>
-        k = <span class="self">self</span>.k_proj(seq)               <span class="cm"># [B, N, D]</span>
-        logits = (q * k).sum(dim=-<span class="num">1</span>) / math.sqrt(k.size(-<span class="num">1</span>))
+        q = <span class="self">self</span>.q_proj(target)[:, <span class="kw">None</span>, :] <span class="shape-badge">Query: [B, 1, D]</span>
+        k = <span class="self">self</span>.k_proj(seq)               <span class="shape-badge">Keys: [B, N, D]</span>
+        logits = (q * k).sum(dim=-<span class="num">1</span>) / math.sqrt(k.size(-<span class="num">1</span>)) <span class="shape-badge">Logits: [B, N]</span>
         <span class="kw">return</span> logits.masked_fill(~seq_mask, -<span class="num">1e9</span>)</code></pre>
           </div>
         </div>
       </section>
 
-      <!-- SLIDE 20: Softmax vs Sigmoid -->
-      <section class="slide" id="slide-20">
+      <!-- SLIDE 19: Softmax vs Sigmoid -->
+      <section class="slide" id="slide-19">
         <div class="slide-header">
-          <span class="slide-tag">20. Attention Gating</span>
+          <span class="slide-tag">19. Attention Gating</span>
           <h2>Softmax chooses among history; sigmoid can reject all history.</h2>
         </div>
         <div class="slide-content-grid" style="grid-template-columns: 1fr 1fr;">
@@ -894,13 +914,13 @@ time_sliced = torch.cat(
 weights = weights * seq_mask.float()
 weights = weights / weights.sum(
     dim=-<span class="num">1</span>, keepdim=<span class="kw">True</span>
-).clamp_min(<span class="num">1e-6</span>)
+).clamp_min(<span class="num">1e-6</span>) <span class="shape-badge">Weights: [B, N]</span>
 context = (weights[:, :, <span class="kw">None</span>] * v).sum(dim=<span class="num">1</span>)</code></pre>
           </div>
           <div class="narrative-col">
             <div class="info-badge teal">Sigmoid Attention</div>
             <p>Gates each event independently. Useful when every history event may be irrelevant to the target (allows zeroing out representation).</p>
-            <pre data-lang="python" style="font-size: 11.5px; padding: 12px;"><code>gates = torch.sigmoid(logits)
+            <pre data-lang="python" style="font-size: 11.5px; padding: 12px;"><code>gates = torch.sigmoid(logits) <span class="shape-badge">Gates: [B, N]</span>
 gates = gates * seq_mask.float()
 context = (gates[:, :, <span class="kw">None</span>] * v).sum(dim=<span class="num">1</span>)
 gate_strength = gates.sum(
@@ -910,10 +930,10 @@ gate_strength = gates.sum(
         </div>
       </section>
 
-      <!-- SLIDE 21: Putting It Together -->
-      <section class="slide" id="slide-21">
+      <!-- SLIDE 20: Putting It Together -->
+      <section class="slide" id="slide-20">
         <div class="slide-header">
-          <span class="slide-tag">21. Full Architecture</span>
+          <span class="slide-tag">20. Full Architecture</span>
           <h2>A modern ranking model layers these ideas.</h2>
         </div>
         <div class="slide-content-grid">
@@ -929,7 +949,7 @@ gate_strength = gates.sum(
             </div>
             
             <p style="font-size: 14px; margin-bottom: 0;">
-              By organizing dense, sparse, and historical parameters in this structured funnel, the model combines wide-and-deep learning with multi-gate experts (PLE) to predict click and value outcomes.
+              By organizing dense, sparse, and historical parameters in this structured funnel, the model combines wide-and-deep learning with multi-task gating to predict click and value outcomes.
             </p>
           </div>
           <div class="narrative-col" style="display: flex; flex-direction: column; gap: 14px;">
@@ -949,10 +969,10 @@ gate_strength = gates.sum(
         </div>
       </section>
 
-      <!-- SLIDE 22: Close -->
-      <section class="slide" id="slide-22">
+      <!-- SLIDE 21: Close -->
+      <section class="slide" id="slide-21">
         <div class="slide-header">
-          <span class="slide-tag">22. Conclusion</span>
+          <span class="slide-tag">21. Conclusion</span>
           <h2>The core ranking loop stays simple.</h2>
         </div>
         <div class="slide-content-grid">

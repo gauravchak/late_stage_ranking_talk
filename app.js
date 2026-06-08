@@ -15,9 +15,21 @@ document.addEventListener('DOMContentLoaded', () => {
   const nextBtn = document.getElementById('btn-next');
   const progressFill = document.querySelector('.progress-bar-fill');
   const progressText = document.querySelector('.progress-text');
+  const breadcrumbSteps = Array.from(document.querySelectorAll('.breadcrumb-step'));
   
   let currentSlideIndex = 0;
   
+  function updateBreadcrumbs(slideNum) {
+    breadcrumbSteps.forEach(step => {
+      const range = step.getAttribute('data-range').split(',').map(Number);
+      if (slideNum >= range[0] && slideNum <= range[1]) {
+        step.classList.add('active');
+      } else {
+        step.classList.remove('active');
+      }
+    });
+  }
+
   function updateSlides() {
     slides.forEach((slide, index) => {
       slide.classList.remove('active', 'prev');
@@ -37,9 +49,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     progressText.textContent = `${currentSlideIndex + 1} / ${slides.length}`;
     
+    // Update breadcrumbs highlight
+    updateBreadcrumbs(currentSlideIndex + 1);
+
     // Enable/disable buttons
     if (prevBtn) prevBtn.disabled = currentSlideIndex === 0;
     if (nextBtn) nextBtn.disabled = currentSlideIndex === slides.length - 1;
+
+    // Reset playground position on entering Slide 5
+    if (currentSlideIndex === 4) {
+      resetPlayground();
+    }
   }
   
   function nextSlide() {
@@ -69,8 +89,10 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   
   document.addEventListener('keydown', (e) => {
-    // Check if the user is typing in an input/textarea
-    if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') {
+    // Check if the user is typing in an input/textarea/select
+    if (document.activeElement.tagName === 'INPUT' || 
+        document.activeElement.tagName === 'TEXTAREA' || 
+        document.activeElement.tagName === 'SELECT') {
       return;
     }
     
@@ -113,6 +135,116 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Initialize
+  // === INTERACTIVE GRADIENT PLAYGROUND (Slide 05) ===
+  const btnPointwise = document.getElementById('btn-mode-pointwise');
+  const btnPairwise = document.getElementById('btn-mode-pairwise');
+  const btnApplyGradient = document.getElementById('btn-apply-gradient');
+  const itemA = document.getElementById('item-a');
+  const itemB = document.getElementById('item-b');
+  const itemC = document.getElementById('item-c');
+  const itemD = document.getElementById('item-d');
+  const playDesc = document.getElementById('playground-desc');
+  
+  let currentMode = 'pointwise';
+  
+  if (btnPointwise && btnPairwise && btnApplyGradient) {
+    btnPointwise.addEventListener('click', () => {
+      currentMode = 'pointwise';
+      btnPointwise.classList.add('active');
+      btnPairwise.classList.remove('active');
+      playDesc.textContent = "Pointwise fits labels directly: items C and D (unclicked) are pulled to 0.0, positive items A and B to 1.0, regardless of the relative order inside the session.";
+      resetPlayground();
+    });
+    
+    btnPairwise.addEventListener('click', () => {
+      currentMode = 'pairwise';
+      btnPairwise.classList.add('active');
+      btnPointwise.classList.remove('active');
+      playDesc.textContent = "Pairwise optimizes order: it pulls positive items above negative items in the same session, focusing on relative preference rather than absolute values.";
+      resetPlayground();
+    });
+    
+    btnApplyGradient.addEventListener('click', () => {
+      // Toggle arrows active state
+      document.querySelectorAll('.gradient-arrow').forEach(arrow => arrow.classList.add('active'));
+      
+      if (currentMode === 'pointwise') {
+        // Pointwise: target positions are absolute (positives at 1.0, negatives at 0.0)
+        if (itemA) itemA.style.top = '15%';
+        if (itemB) itemB.style.top = '15%';
+        if (itemC) itemC.style.top = '85%';
+        if (itemD) itemD.style.top = '85%';
+      } else {
+        // Pairwise: target positions are relative (positives above negatives)
+        if (itemA) itemA.style.top = '15%';
+        if (itemB) itemB.style.top = '35%';
+        if (itemC) itemC.style.top = '60%';
+        if (itemD) itemD.style.top = '80%';
+      }
+      
+      setTimeout(() => {
+        document.querySelectorAll('.gradient-arrow').forEach(arrow => arrow.classList.remove('active'));
+      }, 1500);
+    });
+  }
+  
+  function resetPlayground() {
+    if (itemA && itemB && itemC && itemD) {
+      itemA.style.top = '40%';
+      itemB.style.top = '60%';
+      itemC.style.top = '30%';
+      itemD.style.top = '50%';
+    }
+  }
+
+  // === INTERACTIVE TARGET ATTENTION (Slide 17) ===
+  const selectQueryItem = document.getElementById('select-query-item');
+  const btnRunAttention = document.getElementById('btn-run-attention');
+  const weight1 = document.getElementById('weight-1');
+  const weight2 = document.getElementById('weight-2');
+  const weight3 = document.getElementById('weight-3');
+  const weight4 = document.getElementById('weight-4');
+  const event1 = document.getElementById('event-1');
+  const event2 = document.getElementById('event-2');
+  const event3 = document.getElementById('event-3');
+  const event4 = document.getElementById('event-4');
+  
+  if (event4) event4.classList.add('masked-step');
+  
+  if (btnRunAttention) {
+    btnRunAttention.addEventListener('click', () => {
+      const selected = selectQueryItem.value;
+      
+      // Reset matching card classes and show calculating
+      [event1, event2, event3].forEach(evt => {
+        if (evt) evt.classList.remove('active-match');
+      });
+      [weight1, weight2, weight3].forEach(w => {
+        if (w) w.textContent = "Calculating...";
+      });
+      
+      setTimeout(() => {
+        if (selected === 'headphones') {
+          // Headphones: match Laptop (electronics/music connection: high), Movie (med), Gym Shorts (low)
+          if (weight1) weight1.textContent = "0.72";
+          if (weight2) weight2.textContent = "0.21";
+          if (weight3) weight3.textContent = "0.07";
+          
+          if (event1) event1.classList.add('active-match');
+          if (event2) event2.classList.add('active-match');
+        } else {
+          // Sneakers: match Laptop (low), Movie (med), Gym Shorts (apparel/sports: high)
+          if (weight1) weight1.textContent = "0.05";
+          if (weight2) weight2.textContent = "0.15";
+          if (weight3) weight3.textContent = "0.80";
+          
+          if (event3) event3.classList.add('active-match');
+          if (event2) event2.classList.add('active-match');
+        }
+      }, 800);
+    });
+  }
+
+  // Initialize slides
   updateSlides();
 });
