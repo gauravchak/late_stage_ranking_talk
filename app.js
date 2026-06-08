@@ -56,8 +56,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (prevBtn) prevBtn.disabled = currentSlideIndex === 0;
     if (nextBtn) nextBtn.disabled = currentSlideIndex === slides.length - 1;
 
-    // Initialize dataset table on entering Slide 5
-    if (currentSlideIndex === 4) {
+    // Initialize dataset table on entering Slide 6
+    if (currentSlideIndex === 5) {
       if (btnShowPointwise) {
         btnShowPointwise.classList.add('active');
         if (btnShowPairwise) btnShowPairwise.classList.remove('active');
