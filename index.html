@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Core Ideas of Ranking</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+
+  <!-- Background glows -->
+  <div class="glow-container">
+    <div class="glow-orb glow-orb-1"></div>
+    <div class="glow-orb glow-orb-2"></div>
+  </div>
+
+  <div class="presentation-container">
+    <!-- Header -->
+    <header>
+      <div class="logo-section">
+        <div class="logo-icon">R</div>
+        <div class="logo-text">Ranking<span>Core</span></div>
+      </div>
+      <div class="progress-container">
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill"></div>
+        </div>
+        <div class="progress-text">1 / 22</div>
+      </div>
+    </header>
+
+    <!-- Slides Wrapper -->
+    <main class="slides-wrapper">
+
+      <!-- SLIDE 1: Title -->
+      <section class="slide" id="slide-1">
+        <div class="slide-title-layout">
+          <span class="slide-tag">Team Presentation Draft</span>
+          <h1>Core Ideas of Ranking</h1>
+          <p>A concrete path from scalar PyTorch scorers to pairwise objectives, feature interactions, multi-task value models, expert routing, and sequence attention.</p>
+          
+          <div class="metadata-grid" style="max-width: 600px; width: 100%;">
+            <div class="metadata-box">
+              <span class="metadata-label">Inputs & Outputs</span>
+              <span class="metadata-value">$[B, F]$ dense / $[B, T]$ task outputs</span>
+            </div>
+            <div class="metadata-box">
+              <span class="metadata-label">History Context</span>
+              <span class="metadata-value">$[B, N, D]$ sequence histories</span>
+            </div>
+          </div>
+          
+          <div class="author">
+            <span class="desktop-hint">Use <span class="key-cap">→</span> or <span class="key-cap">Space</span> to navigate.</span>
+            <span class="mobile-hint">Swipe to navigate.</span>
+            <br><br>
+            <span style="font-size: 13px; color: var(--text-muted);">Static HTML deck. Use browser fullscreen to present.</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 2: Mental Model -->
+      <section class="slide" id="slide-2">
+        <div class="slide-header">
+          <span class="slide-tag">02. Mental Model</span>
+          <h2>Ranking is score, sort, and learn from the ordering.</h2>
+        </div>
+        <div class="slide-content-grid">
+          <div class="narrative-col">
+            <h3>The Serving Path</h3>
+            <p>The serving path is intentionally simple: score each candidate in a comparable context, then order by the score.</p>
+            
+            <div class="flow-container">
+              <div class="flow-diagram-horizontal">
+                <div class="flow-node">Candidate Rows</div>
+                <div class="flow-arrow">→</div>
+                <div class="flow-node">Feature Preprocessing</div>
+                <div class="flow-arrow">→</div>
+                <div class="flow-node highlight-blue">Model Scorer</div>
+                <div class="flow-arrow">→</div>
+                <div class="flow-node">Scalar Scores</div>
+                <div class="flow-arrow">→</div>
+                <div class="flow-node">Sort Descending</div>
+              </div>
+            </div>
+          </div>
+          <div class="visualizer-col">
+            <pre data-lang="python"><code><span class="cm"># features: [B, F]</span>
+<span class="cm"># candidates: length B objects aligned with features</span>
+scores = model(features).squeeze(-<span class="num">1</span>)
+<span class="cm"># [B]</span>
+rank_idx = torch.argsort(scores, descending=<span class="kw">True</span>)
+ranked_candidates = candidates[rank_idx]</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 3: Stage 1 Value Scorer -->
+      <section class="slide" id="slide-3">
+        <div class="slide-header">
+          <span class="slide-tag">03. Stage 1 Scorer</span>
+          <h2>A dense value scorer starts from $[B, F]$.</h2>
+        </div>
+        <div class="slide-content-grid">
+          <div class="narrative-col">
+            <div class="info-badge purple">Normalization & Scale</div>
+            <p>Dense float features must be normalized before the model sees them. Float normalization matters more for DNNs than GBDTs because gradients and activations are scale-sensitive.</p>
+            
+            <div class="callout info">
+              <strong>Architecture Note:</strong> Meta retrieval models often use SwishLayerNorm as $y = x \cdot \text{sigmoid}(\text{LayerNorm}(x))$; activation and normalization order is architecture-specific.
+            </div>
+
+            <div class="metadata-box" style="margin-top: 16px;">
+              <span class="metadata-label">Tensors</span>
+              <p style="margin: 0; font-family: var(--font-mono); font-size: 13px;">
+                dense_x: [B, F] &nbsp;|&nbsp; hidden: [B, H] &nbsp;|&nbsp; score: [B]
+              </p>
+            </div>
+          </div>
+          <div class="visualizer-col">
+            <pre data-lang="python"><code><span class="kw">import</span> torch
+<span class="kw">import</span> torch.nn <span class="kw">as</span> nn
+
+<span class="kw">class</span> <span class="cls">SwishLayerNormBlock</span>(nn.Module):
+    <span class="kw">def</span> <span class="fn">__init__</span>(<span class="self">self</span>, in_dim, out_dim):
+        <span class="kw">super</span>().__init__()
+        <span class="self">self</span>.linear = nn.Linear(in_dim, out_dim)
+        <span class="self">self</span>.norm_gate = nn.Sequential(
+            nn.LayerNorm(out_dim),
+            nn.Sigmoid()
+        )
+    <span class="kw">def</span> <span class="fn">forward</span>(<span class="self">self</span>, x):
+        x = <span class="self">self</span>.linear(x)
+        <span class="kw">return</span> x * <span class="self">self</span>.norm_gate(x)
+
+<span class="kw">class</span> <span class="cls">ValueScorer</span>(nn.Module):
+    <span class="kw">def</span> <span class="fn">__init__</span>(<span class="self">self</span>, num_features, hidden_dim):
+        <span class="kw">super</span>().__init__()
+        <span class="self">self</span>.net = nn.Sequential(
+            SwishLayerNormBlock(num_features, hidden_dim),
+            SwishLayerNormBlock(hidden_dim, hidden_dim),
+            nn.Linear(hidden_dim, <span class="num">1</span>)
+        )
+    <span class="kw">def</span> <span class="fn">forward</span>(<span class="self">self</span>, dense_x):
+        <span class="kw">return</span> <span class="self">self</span>.net(dense_x).squeeze(-<span class="num">1</span>)</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 4: Pointwise Scoring -->
+      <section class="slide" id="slide-4">
+        <div class="slide-header">
+          <span class="slide-tag">04. Pointwise Scoring</span>
+          <h2>The scalar score is useful because it is sortable.</h2>
+        </div>
+        <div class="slide-content-grid">
+          <div class="narrative-col">
+            <h3>What the scalar means</h3>
+            <ul class="feature-list">
+              <li>It can be relevance, utility, or a calibrated task/value score.</li>
+              <li>For ads, calibrated predicted value matters because downstream auction logic consumes the number.</li>
+              <li>Ordering still matters: scores must be comparable within context.</li>
+              <li>The next question is how to train scores to create a better order.</li>
+            </ul>
+          </div>
+          <div class="visualizer-col">
+            <pre data-lang="python"><code><span class="cm"># dense_x: [B, F]</span>
+<span class="cm"># label: [B], e.g., conversion value</span>
+score = value_model(dense_x) <span class="cm"># [B]</span>
+
+<span class="cm"># Pointwise MSE loss example</span>
+loss = torch.nn.functional.mse_loss(
+    score, label.float()
+)
+
+<span class="cm"># Serving sorts by score</span>
+rank_idx = torch.argsort(score, descending=<span class="kw">True</span>)</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 5: Pairwise Ranking -->
+      <section class="slide" id="slide-5">
+        <div class="slide-header">
+          <span class="slide-tag">05. Pairwise Ranking</span>
+          <h2>With session IDs, train preferences within the same context.</h2>
+        </div>
+        <div class="slide-content-grid">
+          <div class="narrative-col">
+            <div class="pairwise-diagram">
+              <div class="pairwise-session-box">
+                <span style="font-size: 11px; font-weight:bold;">Session Context</span>
+                <div class="pairwise-item pos">Positive Item (i)</div>
+                <div class="pairwise-item neg">Negative Item (j)</div>
+              </div>
+              <div class="flow-arrow">→</div>
+              <div class="flow-node">score_i - score_j</div>
+              <div class="flow-arrow">→</div>
+              <div class="flow-node highlight-blue">Pairwise BCE</div>
+            </div>
+            
+            <p><strong>Context Matching:</strong> Pairs should be constructed inside the same ranking context. A positive from one session should not be compared to a negative from an unrelated session.</p>
+          </div>
+          <div class="visualizer-col">
+            <pre data-lang="python"><code><span class="kw">import</span> torch.nn.functional <span class="kw">as</span> F
+<span class="cm"># scores: [B]</span>
+<span class="cm"># labels: [B], bool or 0/1</span>
+<span class="cm"># session_id: [B]</span>
+
+i, j = sample_pairs_with_same_session(session_id)
+score_i = scores[i]
+score_j = scores[j]
+
+target = (labels[i].float() > labels[j].float()).float()
+logit = score_i - score_j
+loss = F.binary_cross_entropy_with_logits(logit, target)</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 6: Pairwise Math -->
+      <section class="slide" id="slide-6">
+        <div class="slide-header">
+          <span class="slide-tag">06. Pairwise Math</span>
+          <h2>BCEWithLogitsLoss is the logistic ranking loss.</h2>
+        </div>
+        <div class="slide-content-grid">
+          <div class="narrative-col">
+            <p>Let $z = \text{score}_i - \text{score}_j$. The model probability that item $i$ should rank above item $j$ is:</p>
+            <div class="math-block">
+              $$p(i > j) = \sigma(z) = \frac{1}{1 + \exp(-z)}$$
+            </div>
+            
+            <p>For a binary target $y$, BCE is:</p>
+            <div class="math-block">
+              $$\text{loss} = - y \log(\sigma(z)) - (1 - y) \log(1 - \sigma(z))$$
+            </div>
+            
+            <p>If $i$ is positive and $j$ is negative, $y = 1$:</p>
+            <div class="math-block">
+              $$\text{loss} = -\log(\sigma(\text{score}_{\text{pos}} - \text{score}_{\text{neg}}))$$
+            </div>
+            
+            <p style="margin-top: 10px;">Minimizing the loss pushes $\text{score}_{\text{pos}}$ above $\text{score}_{\text{neg}}$. Using logits directly is the numerically stable implementation.</p>
+          </div>
+          <div class="visualizer-col">
+            <pre data-lang="python"><code><span class="cm"># z = score_pos - score_neg</span>
+target = torch.ones_like(z)
+loss = F.binary_cross_entropy_with_logits(
+    z, target
+)</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 7: Interactions -->
+      <section class="slide" id="slide-7">
+        <div class="slide-header">
+          <span class="slide-tag">07. Feature Interactions</span>
+          <h2>Many ranking signals are naturally "and" conditions.</h2>
+        </div>
+        <div class="slide-content-grid" style="grid-template-columns: 1fr 1fr;">
+          <div class="narrative-col">
+            <div class="info-badge teal">Conjunction Examples</div>
+            <ul class="feature-list teal">
+              <li>User watched this author <strong>and</strong> the video is popular.</li>
+              <li>User is price sensitive <strong>and</strong> the product is discounted.</li>
+              <li>Query intent matches category <strong>and</strong> seller quality is high.</li>
+              <li>Recent behavior matches the target item, not just any item.</li>
+            </ul>
+          </div>
+          <div class="narrative-col">
+            <div class="info-badge purple">GBDT Intuition</div>
+            <p>Tree paths naturally encode conjunctions. That is why GBDTs are so strong on dense tabular ranking features.</p>
+            
+            <div class="callout warning">
+              <strong>Scale Limit:</strong> The pressure point is scale: thousands of features, learned embeddings, high-cardinality IDs, and sequence features push us toward neural interaction architectures.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 8: Simple Neural Interactions -->
+      <section class="slide" id="slide-8">
+        <div class="slide-header">
+          <span class="slide-tag">08. Neural Interactions</span>
+          <h2>Start by making the cross explicit.</h2>
+        </div>
+        <div class="slide-content-grid">
+          <div class="narrative-col">
+            <p>A plain MLP can learn interactions, but a specialized architecture makes the most important cross terms easier to express.</p>
+            
+            <div class="glass-card highlight" style="margin-top: 15px;">
+              <h4 style="margin-bottom: 12px; font-family: var(--font-heading);">Explicit Cross Pipeline</h4>
+              <div style="display: flex; gap: 10px; align-items: center; justify-content: center;">
+                <div class="flow-node">user_h</div>
+                <span style="font-weight:bold;">+</span>
+                <div class="flow-node">item_h</div>
+                <span style="font-weight:bold;">+</span>
+                <div class="flow-node highlight-blue">user_h * item_h</div>
+                <span style="font-weight:bold;">→</span>
+                <div class="flow-node">Concat [3H]</div>
+              </div>
+            </div>
+            
+            <p style="margin-top: 15px; font-size: 14px; color: var(--text-muted);">
+              Note: a sufficiently large MLP can represent these crosses in principle, but explicit interaction layers make useful terms easier to learn with finite data and SGD.
+            </p>
+          </div>
+          <div class="visualizer-col">
+            <pre data-lang="python"><code><span class="kw">class</span> <span class="cls">ExplicitInteractionScorer</span>(nn.Module):
+    <span class="kw">def</span> <span class="fn">__init__</span>(<span class="self">self</span>, user_dim, item_dim, hidden_dim):
+        <span class="kw">super</span>().__init__()
+        <span class="self">self</span>.user_proj = nn.Linear(user_dim, hidden_dim)
+        <span class="self">self</span>.item_proj = nn.Linear(item_dim, hidden_dim)
+        <span class="self">self</span>.head = nn.Sequential(
+            SwishLayerNormBlock(3 * hidden_dim, hidden_dim),
+            nn.Linear(hidden_dim, <span class="num">1</span>)
+        )
+    <span class="kw">def</span> <span class="fn">forward</span>(<span class="self">self</span>, user_x, item_x):
+        user_h = <span class="self">self</span>.user_proj(user_x) <span class="cm"># [B, H]</span>
+        item_h = <span class="self">self</span>.item_proj(item_x) <span class="cm"># [B, H]</span>
+        cross = user_h * item_h          <span class="cm"># [B, H]</span>
+        h = torch.cat(
+            [user_h, item_h, cross], dim=-<span class="num">1</span>
+        ) <span class="cm"># [B, 3H]</span>
+        <span class="kw">return</span> <span class="self">self</span>.head(h).squeeze(-<span class="num">1</span>)</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 9: Transformer-Style Interactions -->
+      <section class="slide" id="slide-9">
+        <div class="slide-header">
+          <span class="slide-tag">09. Attention Interactions</span>
+          <h2>Represent features as tokens, then let attention mix them.</h2>
+        </div>
+        <div class="slide-content-grid">
+          <div class="narrative-col">
+            <p>The analogy is "features as words." Instead of one flat vector, each feature group can condition on the others through attention.</p>
+            
+            <div class="flow-container">
+              <div class="flow-diagram-horizontal" style="font-size: 13px;">
+                <div class="flow-node">Feature Groups</div>
+                <div class="flow-arrow">→</div>
+                <div class="flow-node">Project (128d)</div>
+                <div class="flow-arrow">→</div>
+                <div class="flow-node">Self-Attention</div>
+                <div class="flow-arrow">→</div>
+                <div class="flow-node highlight-blue">Mean Pool</div>
+                <div class="flow-arrow">→</div>
+                <div class="flow-node">Score Head</div>
+              </div>
+            </div>
+            
+            <p>By mapping feature fields (e.g. User History, Category, Time Context) to tokens, the Transformer layer learns non-linear interaction matrices dynamically.</p>
+          </div>
+          <div class="visualizer-col">
+            <pre data-lang="python"><code><span class="kw">class</span> <span class="cls">FeatureTokenRanker</span>(nn.Module):
+    <span class="kw">def</span> <span class="fn">__init__</span>(<span class="self">self</span>, token_sources, dim=<span class="num">128</span>, layers=<span class="num">2</span>):
+        <span class="kw">super</span>().__init__()
+        <span class="self">self</span>.proj = nn.ModuleDict({
+            name: nn.Linear(src_dim, dim)
+            <span class="kw">for</span> name, src_dim <span class="kw">in</span> token_sources.items()
+        })
+        enc_layer = nn.TransformerEncoderLayer(
+            d_model=dim, nhead=<span class="num">4</span>,
+            dim_feedforward=<span class="num">4</span> * dim, batch_first=<span class="kw">True</span>
+        )
+        <span class="self">self</span>.encoder = nn.TransformerEncoder(enc_layer, layers)
+        <span class="self">self</span>.head = nn.Linear(dim, <span class="num">1</span>)
+    <span class="kw">def</span> <span class="fn">forward</span>(<span class="self">self</span>, feature_groups):
+        tokens = [<span class="self">self</span>.proj[name](feature_groups[name]) 
+                  <span class="kw">for</span> name <span class="kw">in</span> <span class="self">self</span>.proj]
+        x = torch.stack(tokens, dim=<span class="num">1</span>)  <span class="cm"># [B, T, 128]</span>
+        x = <span class="self">self</span>.encoder(x)             <span class="cm"># [B, T, 128]</span>
+        pooled = x.mean(dim=<span class="num">1</span>)          <span class="cm"># [B, 128]</span>
+        <span class="kw">return</span> <span class="self">self</span>.head(pooled).squeeze(-<span class="num">1</span>)</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 10: Multi-Task Value Model -->
+      <section class="slide" id="slide-10">
+        <div class="slide-header">
+          <span class="slide-tag">10. Multi-Task</span>
+          <h2>One shared representation can feed multiple task heads.</h2>
+        </div>
+        <div class="slide-content-grid">
+          <div class="narrative-col">
+            <p>A value model often combines several predicted outcomes into the final ranking score: click, conversion, dwell, purchase value, or other business terms.</p>
+            
+            <div class="flow-container">
+              <div class="flow-diagram-horizontal">
+                <div class="flow-node">dense_x: [B, F]</div>
+                <div class="flow-arrow">→</div>
+                <div class="flow-node highlight-blue">Backbone h: [B, H]</div>
+                <div class="flow-arrow">→</div>
+                <div class="flow-node">Task Heads: [B, T]</div>
+              </div>
+            </div>
+            
+            <div class="callout info">
+              <strong>Serving Value Formula:</strong><br>
+              $\text{vm\_score} = \sum_{t} P(\text{Task}_t) \times \text{Value}_t$
+            </div>
+          </div>
+          <div class="visualizer-col">
+            <pre data-lang="python"><code><span class="kw">class</span> <span class="cls">MultiTaskValueModel</span>(nn.Module):
+    <span class="kw">def</span> <span class="fn">__init__</span>(<span class="self">self</span>, num_features, hidden_dim, num_tasks):
+        <span class="kw">super</span>().__init__()
+        <span class="self">self</span>.backbone = nn.Sequential(
+            SwishLayerNormBlock(num_features, hidden_dim),
+            SwishLayerNormBlock(hidden_dim, hidden_dim)
+        )
+        <span class="self">self</span>.heads = nn.Linear(hidden_dim, num_tasks)
+    <span class="kw">def</span> <span class="fn">forward</span>(<span class="self">self</span>, dense_x):
+        h = <span class="self">self</span>.backbone(dense_x)      <span class="cm"># [B, H]</span>
+        <span class="kw">return</span> <span class="self">self</span>.heads(h)            <span class="cm"># [B, T]</span>
+
+<span class="cm"># At serving:</span>
+logits = model(dense_x)
+probs = torch.sigmoid(logits) <span class="cm"># [B, T]</span>
+vm_score = (probs * task_values).sum(dim=-<span class="num">1</span>)</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 11: Global MMoE -->
+      <section class="slide" id="slide-11">
+        <div class="slide-header">
+          <span class="slide-tag">11. Global MMoE</span>
+          <h2>Global MMoE learns task-choice routing with row-stable weights.</h2>
+        </div>
+        <div class="slide-content-grid">
+          <div class="narrative-col">
+            <p>Each task learns its own $[E]$-dimensional distribution over shared experts. The weights are learned, but they are global for that task: they do not vary by row (example).</p>
+            
+            <div class="metadata-box" style="margin-top: 20px;">
+              <span class="metadata-label">Variable Dimensions</span>
+              <ul style="font-family: var(--font-mono); font-size: 13.5px; list-style: none; padding-left: 0;">
+                <li>• experts: [B, E, D]</li>
+                <li>• weights: [T, E]</li>
+                <li>• task_repr: [B, T, D]</li>
+              </ul>
+            </div>
+            
+            <p style="margin-top: 20px; font-size: 14px; color: var(--text-muted);">
+              By soft-averaging the experts globally, tasks share representation space while specializing their heads, using <code>torch.einsum</code> for fast batch tensor contraction.
+            </p>
+          </div>
+          <div class="visualizer-col">
+            <pre data-lang="python"><code><span class="kw">class</span> <span class="cls">GlobalMMoE</span>(nn.Module):
+    <span class="kw">def</span> <span class="fn">__init__</span>(<span class="self">self</span>, in_dim, expert_dim, num_experts, num_tasks):
+        <span class="kw">super</span>().__init__()
+        <span class="self">self</span>.experts = nn.ModuleList([
+            nn.Linear(in_dim, expert_dim)
+            <span class="kw">for</span> _ <span class="kw">in</span> <span class="kw">range</span>(num_experts)
+        ])
+        <span class="self">self</span>.task_expert_logits = nn.Parameter(
+            torch.zeros(num_tasks, num_experts)
+        )
+    <span class="kw">def</span> <span class="fn">forward</span>(<span class="self">self</span>, h):
+        expert_out = torch.stack(
+            [expert(h) <span class="kw">for</span> expert <span class="kw">in</span> <span class="self">self</span>.experts], dim=<span class="num">1</span>
+        ) <span class="cm"># [B, E, D]</span>
+        weights = torch.softmax(
+            <span class="self">self</span>.task_expert_logits, dim=-<span class="num">1</span>
+        ) <span class="cm"># [T, E]</span>
+        <span class="kw">return</span> torch.einsum(
+            <span class="str">"bed, te->btd"</span>, expert_out, weights
+        ) <span class="cm"># [B, T, D]</span></code></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 12: Global MMoE Routing -->
+      <section class="slide" id="slide-12">
+        <div class="slide-header">
+          <span class="slide-tag">12. Routing Map</span>
+          <h2>Experts produce different outputs; each task learns which mix to use.</h2>
+        </div>
+        <div class="slide-content-full">
+          <p>The experts are shared, but the learned $[T, E]$ matrix lets each task pull a different soft combination from those expert outputs. In this version, the selector is stable across rows.</p>
+          
+          <div class="mmoe-routing-grid">
+            <!-- Col 1: Input & Experts -->
+            <div class="routing-col">
+              <div class="routing-card" style="border-left: 4px solid var(--accent-blue);">
+                <div class="routing-card-title">Shared Input</div>
+                <strong>Row representation h</strong>
+                <div style="font-family: var(--font-mono); font-size: 13.5px; margin-top: 4px; color: var(--text-muted);">h: [B, H]</div>
+              </div>
+              <div class="routing-card" style="border-left: 4px solid var(--accent-teal);">
+                <div class="routing-card-title">Shared Experts</div>
+                <ul style="list-style: none; padding-left: 0; font-size: 13px;">
+                  <li>• Expert 1 output $o_1$</li>
+                  <li>• Expert 2 output $o_2$</li>
+                  <li>• Expert 3 output $o_3$</li>
+                  <li style="color: var(--text-muted); font-family: var(--font-mono); margin-top: 4px;">[B, D] tensors</li>
+                </ul>
+              </div>
+            </div>
+            
+            <!-- Col 2: Selector Matrix -->
+            <div class="routing-col">
+              <div class="routing-card">
+                <div class="routing-card-title">Learned Selector Matrix [T, E]</div>
+                <table class="routing-table">
+                  <thead>
+                    <tr>
+                      <th>Task</th>
+                      <th>Exp 1</th>
+                      <th>Exp 2</th>
+                      <th>Exp 3</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr style="color: var(--accent-blue); font-weight: 600;">
+                      <td>Click</td>
+                      <td>0.62</td>
+                      <td>0.25</td>
+                      <td>0.13</td>
+                    </tr>
+                    <tr style="color: var(--accent-teal); font-weight: 600;">
+                      <td>Conv</td>
+                      <td>0.10</td>
+                      <td>0.58</td>
+                      <td>0.32</td>
+                    </tr>
+                    <tr style="color: var(--accent-purple); font-weight: 600;">
+                      <td>Dwell</td>
+                      <td>0.28</td>
+                      <td>0.17</td>
+                      <td>0.55</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            
+            <!-- Col 3: Task Reps -->
+            <div class="routing-col">
+              <div class="routing-card" style="border-left: 4px solid var(--accent-blue);">
+                <div class="routing-card-title">Task Representations</div>
+                <ul style="list-style: none; padding-left: 0; font-size: 13px; display: flex; flex-direction: column; gap: 8px;">
+                  <li>
+                    <strong style="color: var(--accent-blue);">Click repr:</strong><br>
+                    $0.62 \cdot o_1 + 0.25 \cdot o_2 + 0.13 \cdot o_3$
+                  </li>
+                  <li>
+                    <strong style="color: var(--accent-teal);">Conversion repr:</strong><br>
+                    $0.10 \cdot o_1 + 0.58 \cdot o_2 + 0.32 \cdot o_3$
+                  </li>
+                  <li>
+                    <strong style="color: var(--accent-purple);">Dwell repr:</strong><br>
+                    $0.28 \cdot o_1 + 0.17 \cdot o_2 + 0.55 \cdot o_3$
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 13: Row-Conditioned MMoE -->
+      <section class="slide" id="slide-13">
+        <div class="slide-header">
+          <span class="slide-tag">13. Dynamic MMoE</span>
+          <h2>Row-conditioned MMoE makes the expert mixture example-specific.</h2>
+        </div>
+        <div class="slide-content-grid">
+          <div class="narrative-col">
+            <p>Global MMoE learns one $[T, E]$ routing matrix. Row-conditioned MMoE learns gates shaped $[B, T, E]$, so the same task can route different examples through different expert mixtures.</p>
+            
+            <div class="callout info">
+              <strong>Conditional Gating:</strong><br>
+              Instead of static parameters, the gate weights are computed dynamically: $\text{gate\_logits} = \text{Linear}(h)$ for each task.
+            </div>
+            
+            <p style="font-family: var(--font-mono); font-size: 13px; color: var(--text-muted); margin-top: 10px;">
+              experts: [B, E, D] | gates: [B, T, E] | task_repr: [B, T, D]
+            </p>
+          </div>
+          <div class="visualizer-col">
+            <pre data-lang="python"><code><span class="kw">class</span> <span class="cls">MMoE</span>(nn.Module):
+    <span class="kw">def</span> <span class="fn">__init__</span>(<span class="self">self</span>, in_dim, expert_dim, num_experts, num_tasks):
+        <span class="kw">super</span>().__init__()
+        <span class="self">self</span>.experts = nn.ModuleList([
+            nn.Linear(in_dim, expert_dim)
+            <span class="kw">for</span> _ <span class="kw">in</span> <span class="kw">range</span>(num_experts)
+        ])
+        <span class="self">self</span>.gates = nn.ModuleList([
+            nn.Linear(in_dim, num_experts)
+            <span class="kw">for</span> _ <span class="kw">in</span> <span class="kw">range</span>(num_tasks)
+        ])
+    <span class="kw">def</span> <span class="fn">forward</span>(<span class="self">self</span>, h):
+        expert_out = torch.stack(
+            [expert(h) <span class="kw">for</span> expert <span class="kw">in</span> <span class="self">self</span>.experts], dim=<span class="num">1</span>
+        ) <span class="cm"># [B, E, D]</span>
+        gate_logits = torch.stack(
+            [gate(h) <span class="kw">for</span> gate <span class="kw">in</span> <span class="self">self</span>.gates], dim=<span class="num">1</span>
+        ) <span class="cm"># [B, T, E]</span>
+        gate_weights = torch.softmax(gate_logits, dim=-<span class="num">1</span>)
+        <span class="kw">return</span> torch.einsum(
+            <span class="str">"bed, bte->btd"</span>, expert_out, gate_weights
+        )</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 14: PLE -->
+      <section class="slide" id="slide-14">
+        <div class="slide-header">
+          <span class="slide-tag">14. PLE Architecture</span>
+          <h2>PLE adds task-private experts on top of shared experts.</h2>
+        </div>
+        <div class="slide-content-grid">
+          <div class="narrative-col">
+            <h3>Why private experts help</h3>
+            <ul class="feature-list">
+              <li>Some tasks transfer signal; some tasks conflict (gradient clash).</li>
+              <li>Shared experts learn reusable representations across tasks.</li>
+              <li>Task-private experts shield task-specific behavior from other gradients.</li>
+              <li>Per-task gates choose from a combination of shared + private experts.</li>
+            </ul>
+            
+            <p style="margin-top: 15px; font-size: 14.5px;">
+              PLE is a structured extension of MMoE: it keeps shared capacity for transfer, while giving each task private capacity when gradients disagree.
+            </p>
+          </div>
+          <div class="visualizer-col">
+            <h4 style="margin-bottom: 12px; font-family: var(--font-heading); font-size: 14px;">PLE Expert Distribution</h4>
+            <div class="ple-expert-layout">
+              <div class="ple-expert-column">
+                <div class="ple-expert-header" style="color: var(--accent-purple);">Click Private</div>
+                <div class="ple-expert-box private-click">Click Expert 1</div>
+                <div class="ple-expert-box private-click">Click Expert 2</div>
+              </div>
+              <div class="ple-expert-column">
+                <div class="ple-expert-header" style="color: var(--accent-blue);">Shared</div>
+                <div class="ple-expert-box shared">Shared Expert 1</div>
+                <div class="ple-expert-box shared">Shared Expert 2</div>
+              </div>
+              <div class="ple-expert-column">
+                <div class="ple-expert-header" style="color: var(--accent-teal);">Conv Private</div>
+                <div class="ple-expert-box private-conv">Conv Expert 1</div>
+                <div class="ple-expert-box private-conv">Conv Expert 2</div>
+              </div>
+            </div>
+            <p style="font-size: 12px; color: var(--text-muted); text-align: center;">Task gates combine shared + private expert sub-groups dynamically per sample.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 15: Embedding Features -->
+      <section class="slide" id="slide-15">
+        <div class="slide-header">
+          <span class="slide-tag">15. Feature Embeddings</span>
+          <h2>Domain adapters project embeddings before concatenation.</h2>
+        </div>
+        <div class="slide-content-grid">
+          <div class="narrative-col">
+            <p>"Domain adaptation" here can be explained simply: project a feature from its original representation into the ranking model's hidden space before concatenating.</p>
+            
+            <div class="glass-card highlight" style="margin-top: 15px;">
+              <h4 style="margin-bottom: 10px; font-family: var(--font-heading); font-size: 14px;">Concatenation Flow</h4>
+              <div style="display: flex; flex-direction: column; gap: 8px; font-size: 12px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span>Dense [B, F]</span>
+                  <span>→ MLP →</span>
+                  <span style="font-family: var(--font-mono); color: var(--accent-blue);">dense_h [B, H]</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span>Embedding [B, D_emb]</span>
+                  <span>→ Adapter →</span>
+                  <span style="font-family: var(--font-mono); color: var(--accent-teal);">emb_h [B, H]</span>
+                </div>
+                <div style="border-top: 1px solid var(--glass-border); padding-top: 8px; font-weight: bold; text-align: center; color: var(--accent-purple);">
+                  Concat → [B, 2H] → Scoring Head
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="visualizer-col">
+            <pre data-lang="python"><code><span class="kw">class</span> <span class="cls">DensePlusEmbeddingRanker</span>(nn.Module):
+    <span class="kw">def</span> <span class="fn">__init__</span>(<span class="self">self</span>, dense_dim, emb_dim, hidden_dim):
+        <span class="kw">super</span>().__init__()
+        <span class="self">self</span>.dense_mlp = nn.Sequential(
+            SwishLayerNormBlock(dense_dim, hidden_dim),
+            SwishLayerNormBlock(hidden_dim, hidden_dim)
+        )
+        <span class="self">self</span>.emb_adapter = nn.Sequential(
+            nn.Linear(emb_dim, hidden_dim),
+            nn.LayerNorm(hidden_dim),
+            nn.SiLU()
+        )
+        <span class="self">self</span>.head = nn.Linear(<span class="num">2</span> * hidden_dim, <span class="num">1</span>)
+    <span class="kw">def</span> <span class="fn">forward</span>(<span class="self">self</span>, dense_x, emb):
+        dense_h = <span class="self">self</span>.dense_mlp(dense_x) <span class="cm"># [B, H]</span>
+        emb_h = <span class="self">self</span>.emb_adapter(emb)     <span class="cm"># [B, H]</span>
+        h = torch.cat([dense_h, emb_h], dim=-<span class="num">1</span>)
+        <span class="kw">return</span> <span class="self">self</span>.head(h).squeeze(-<span class="num">1</span>)</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 16: Sequence Embeddings -->
+      <section class="slide" id="slide-16">
+        <div class="slide-header">
+          <span class="slide-tag">16. Sequences</span>
+          <h2>The first useful sequence feature is often masked mean pooling.</h2>
+        </div>
+        <div class="slide-content-grid">
+          <div class="narrative-col">
+            <p>This is cheap, stable, and surprisingly competitive. It asks: "What has this user generally done?"</p>
+            
+            <div class="glass-card" style="margin-top: 15px; border-left: 4px solid var(--accent-teal);">
+              <h4 style="font-family: var(--font-heading); margin-bottom: 8px;">Pooling Dimensions</h4>
+              <p style="margin: 0; font-family: var(--font-mono); font-size: 13px;">
+                seq: [B, N, D] &nbsp;|&nbsp; mask: [B, N] &nbsp;|&nbsp; pooled: [B, D]
+              </p>
+            </div>
+            
+            <p style="margin-top: 15px; font-size: 14.5px;">
+              The boolean sequence mask prevents padding tokens (unrealized history steps) from bleeding into the mean representation, clamping the denominator min to 1.0 to avoid division by zero.
+            </p>
+          </div>
+          <div class="visualizer-col">
+            <pre data-lang="python"><code><span class="kw">def</span> <span class="fn">masked_mean</span>(seq, mask):
+    <span class="cm"># seq: [B, N, D]</span>
+    <span class="cm"># mask: [B, N], True for real history event</span>
+    mask_f = mask.float()
+    denom = mask_f.sum(dim=<span class="num">1</span>).clamp_min(<span class="num">1.0</span>)
+    total = (seq * mask_f[:, :, <span class="kw">None</span>]).sum(dim=<span class="num">1</span>)
+    <span class="kw">return</span> total / denom[:, <span class="kw">None</span>] <span class="cm"># [B, D]</span>
+
+<span class="cm"># In model forward:</span>
+history_h = masked_mean(history_seq, history_mask)
+history_h = history_adapter(history_h)
+h = torch.cat(
+    [dense_h, emb_h, history_h], dim=-<span class="num">1</span>
+)</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 17: Time-Sliced Pooling -->
+      <section class="slide" id="slide-17">
+        <div class="slide-header">
+          <span class="slide-tag">17. Time-Sliced Pooling</span>
+          <h2>A strong practical extension: pool history by recency bucket.</h2>
+        </div>
+        <div class="slide-content-grid">
+          <div class="narrative-col">
+            <p>Mean pooling erases time. Time-sliced pooling preserves a small amount of recency structure while keeping the model simple.</p>
+            
+            <div class="glass-card highlight" style="margin-top: 15px;">
+              <h4 style="margin-bottom: 12px; font-family: var(--font-heading); font-size: 14px;">Recency Buckets</h4>
+              <div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px;">
+                <div style="display: flex; justify-content: space-between;">
+                  <strong>Recent:</strong> <span>last 24 hours</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                  <strong>Medium:</strong> <span>last week (24h - 7d)</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                  <strong>Old:</strong> <span>older history (&gt; 7d)</span>
+                </div>
+              </div>
+            </div>
+            
+            <p style="margin-top: 15px; font-size: 14.5px;">
+              Pooling each bucket separately and concatenating them creates a 3D representation: <code>[B, 3D]</code>, letting the dense layers learn weight decays over time.
+            </p>
+          </div>
+          <div class="visualizer-col">
+            <pre data-lang="python"><code><span class="cm"># seq: [B, N, D] | age_hours: [B, N] | seq_mask: [B, N]</span>
+recent_mask = seq_mask & (age_hours < <span class="num">24</span>)
+mid_mask = (seq_mask & (age_hours >= <span class="num">24</span>) 
+            & (age_hours < <span class="num">24</span> * <span class="num">7</span>))
+old_mask = seq_mask & (age_hours >= <span class="num">24</span> * <span class="num">7</span>)
+
+recent_pool = masked_mean(seq, recent_mask) <span class="cm"># [B, D]</span>
+mid_pool = masked_mean(seq, mid_mask)       <span class="cm"># [B, D]</span>
+old_pool = masked_mean(seq, old_mask)       <span class="cm"># [B, D]</span>
+
+time_sliced = torch.cat(
+    [recent_pool, mid_pool, old_pool], dim=-<span class="num">1</span>
+) <span class="cm"># [B, 3D]</span></code></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 18: Target Attention -->
+      <section class="slide" id="slide-18">
+        <div class="slide-header">
+          <span class="slide-tag">18. Target Attention</span>
+          <h2>Now ask which history events matter for this target.</h2>
+        </div>
+        <div class="slide-content-grid">
+          <div class="narrative-col">
+            <ul class="feature-list">
+              <li><strong>Mean Pooling</strong> asks what the user generally did.</li>
+              <li><strong>Time-Sliced Pooling</strong> asks when they did it.</li>
+              <li><strong>Target Attention</strong> asks whether each history event is relevant to the candidate being ranked now.</li>
+            </ul>
+            
+            <p style="margin-top: 15px;">
+              For instance, if the candidate item is a laptop, target attention highlights historical laptop clicks while ignoring clothes or food purchases.
+            </p>
+            
+            <div class="math-block">
+              $$\text{logit}[b, n] = \frac{\text{query}(\text{target}[b]) \cdot \text{key}(\text{seq}[b, n])}{\sqrt{D}}$$
+            </div>
+          </div>
+          <div class="visualizer-col">
+            <div class="glass-card highlight">
+              <h4 style="margin-bottom: 12px; font-family: var(--font-heading); font-size: 14px;">Dot-Product Matching</h4>
+              <div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <strong>Target item [B, D]</strong>
+                  <span>→ Query →</span>
+                  <span style="color: var(--accent-blue);">Q</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <strong>History [B, N, D]</strong>
+                  <span>→ Keys →</span>
+                  <span style="color: var(--accent-teal);">K</span>
+                </div>
+                <div style="border-top: 1px solid var(--glass-border); padding-top: 8px; font-weight: bold; text-align: center; color: var(--accent-purple);">
+                  Q * K / sqrt(D) → Logits [B, N] → Weights
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 19: Target Attention Code -->
+      <section class="slide" id="slide-19">
+        <div class="slide-header">
+          <span class="slide-tag">19. Target Attention Code</span>
+          <h2>The definitional PyTorch version.</h2>
+        </div>
+        <div class="slide-content-grid">
+          <div class="narrative-col">
+            <p>The dot product says how much each history event matches the current target candidate. Valid history items are kept, while padding steps are masked to negative infinity before softmax.</p>
+            
+            <div class="metadata-box" style="margin-top: 20px;">
+              <span class="metadata-label">Tensor Shapes</span>
+              <ul style="font-family: var(--font-mono); font-size: 13px; list-style: none; padding-left: 0;">
+                <li>• target: [B, D]</li>
+                <li>• seq: [B, N, D]</li>
+                <li>• seq_mask: [B, N]</li>
+                <li>• logits: [B, N]</li>
+              </ul>
+            </div>
+          </div>
+          <div class="visualizer-col">
+            <pre data-lang="python"><code><span class="kw">import</span> math
+
+<span class="kw">class</span> <span class="cls">TargetAttention</span>(nn.Module):
+    <span class="kw">def</span> <span class="fn">__init__</span>(<span class="self">self</span>, dim):
+        <span class="kw">super</span>().__init__()
+        <span class="self">self</span>.q_proj = nn.Linear(dim, dim)
+        <span class="self">self</span>.k_proj = nn.Linear(dim, dim)
+        <span class="self">self</span>.v_proj = nn.Linear(dim, dim)
+        
+    <span class="kw">def</span> <span class="fn">logits</span>(<span class="self">self</span>, target, seq, seq_mask):
+        q = <span class="self">self</span>.q_proj(target)[:, <span class="kw">None</span>, :] <span class="cm"># [B, 1, D]</span>
+        k = <span class="self">self</span>.k_proj(seq)               <span class="cm"># [B, N, D]</span>
+        logits = (q * k).sum(dim=-<span class="num">1</span>) / math.sqrt(k.size(-<span class="num">1</span>))
+        <span class="kw">return</span> logits.masked_fill(~seq_mask, -<span class="num">1e9</span>)</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 20: Softmax vs Sigmoid -->
+      <section class="slide" id="slide-20">
+        <div class="slide-header">
+          <span class="slide-tag">20. Attention Gating</span>
+          <h2>Softmax chooses among history; sigmoid can reject all history.</h2>
+        </div>
+        <div class="slide-content-grid" style="grid-template-columns: 1fr 1fr;">
+          <div class="narrative-col">
+            <div class="info-badge blue">Softmax Attention</div>
+            <p>Distributes probability mass across valid history events. Good when at least one event should explain the target (forces competition).</p>
+            <pre data-lang="python" style="font-size: 11.5px; padding: 12px;"><code>weights = torch.softmax(logits, dim=-<span class="num">1</span>)
+weights = weights * seq_mask.float()
+weights = weights / weights.sum(
+    dim=-<span class="num">1</span>, keepdim=<span class="kw">True</span>
+).clamp_min(<span class="num">1e-6</span>)
+context = (weights[:, :, <span class="kw">None</span>] * v).sum(dim=<span class="num">1</span>)</code></pre>
+          </div>
+          <div class="narrative-col">
+            <div class="info-badge teal">Sigmoid Attention</div>
+            <p>Gates each event independently. Useful when every history event may be irrelevant to the target (allows zeroing out representation).</p>
+            <pre data-lang="python" style="font-size: 11.5px; padding: 12px;"><code>gates = torch.sigmoid(logits)
+gates = gates * seq_mask.float()
+context = (gates[:, :, <span class="kw">None</span>] * v).sum(dim=<span class="num">1</span>)
+gate_strength = gates.sum(
+    dim=-<span class="num">1</span>, keepdim=<span class="kw">True</span>
+)</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 21: Putting It Together -->
+      <section class="slide" id="slide-21">
+        <div class="slide-header">
+          <span class="slide-tag">21. Full Architecture</span>
+          <h2>A modern ranking model layers these ideas.</h2>
+        </div>
+        <div class="slide-content-grid">
+          <div class="narrative-col">
+            <div class="glass-card highlight" style="margin-bottom: 16px;">
+              <h4 style="margin-bottom: 10px; font-family: var(--font-heading); font-size: 14px;">Model Piping Flow</h4>
+              <div style="font-size: 12px; display: flex; flex-direction: column; gap: 6px;">
+                <div>• <strong>Dense Features + Embeddings</strong> → Adapters → Concat</div>
+                <div>• <strong>History Sequence</strong> → Pooling / Attention → Concat</div>
+                <div>• <strong>All Features</strong> → Interaction Layers → Dense Tower</div>
+                <div>• <strong>Tower Output</strong> → Multi-Task Experts / Heads → VM Score</div>
+              </div>
+            </div>
+            
+            <p style="font-size: 14px; margin-bottom: 0;">
+              By organizing dense, sparse, and historical parameters in this structured funnel, the model combines wide-and-deep learning with multi-gate experts (PLE) to predict click and value outcomes.
+            </p>
+          </div>
+          <div class="narrative-col" style="display: flex; flex-direction: column; gap: 14px;">
+            <div>
+              <strong style="color: var(--accent-blue);">Scoring:</strong>
+              <span style="font-size: 13.5px; display: block; margin-top: 4px; color: var(--text-secondary);">Ranking starts with a scalar score per candidate. Everything else exists to make that score better.</span>
+            </div>
+            <div>
+              <strong style="color: var(--accent-teal);">Objectives:</strong>
+              <span style="font-size: 13.5px; display: block; margin-top: 4px; color: var(--text-secondary);">Pointwise losses fit labels. Pairwise losses directly teach ordering inside a session or request context.</span>
+            </div>
+            <div>
+              <strong style="color: var(--accent-purple);">Architecture:</strong>
+              <span style="font-size: 13.5px; display: block; margin-top: 4px; color: var(--text-secondary);">Interactions, experts, embeddings, and sequence attention add useful inductive bias for ranking data.</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 22: Close -->
+      <section class="slide" id="slide-22">
+        <div class="slide-header">
+          <span class="slide-tag">22. Conclusion</span>
+          <h2>The core ranking loop stays simple.</h2>
+        </div>
+        <div class="slide-content-grid">
+          <div class="narrative-col">
+            <div class="flow-container" style="margin-bottom: 24px;">
+              <div class="flow-diagram-horizontal">
+                <div class="flow-node">Features</div>
+                <div class="flow-arrow">→</div>
+                <div class="flow-node highlight-blue">Scoring</div>
+                <div class="flow-arrow">→</div>
+                <div class="flow-node">Scores</div>
+                <div class="flow-arrow">→</div>
+                <div class="flow-node">Sort</div>
+                <div class="flow-arrow">→</div>
+                <div class="flow-node">Observe Feedback</div>
+                <div class="flow-arrow">→</div>
+                <div class="flow-node highlight-teal">Improve</div>
+              </div>
+            </div>
+            
+            <p>The architectural details matter because they decide which evidence the model can express cleanly: crosses, tasks, experts, embeddings, recency, and target-specific history.</p>
+            
+            <div class="callout info" style="margin-top: 20px;">
+              <strong>Takeaway:</strong> A concrete path from scalar scorers to target-aware multi-task representations enables building high-capacity ranking systems that scale efficiently in production environments.
+            </div>
+          </div>
+          <div class="visualizer-col">
+            <div class="glass-card highlight" style="text-align: center; padding: 40px 24px;">
+              <h3 style="font-family: var(--font-heading); color: var(--accent-blue); margin-bottom: 12px;">Core Ideas of Ranking</h3>
+              <p style="font-size: 15px; color: var(--text-secondary); margin-bottom: 24px;">Thank you for attending this presentation.</p>
+              <button class="btn-nav" id="btn-restart" style="width: auto; padding: 10px 20px; font-family: var(--font-heading); font-weight: 600; display: inline-flex; align-items: center; gap: 8px; margin: 0 auto;">
+                Restart Slides
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Footer Controls -->
+    <footer>
+      <div class="keyboard-hints">
+        <span>Press <span class="key-cap">→</span>, <span class="key-cap">Space</span>, or <span class="key-cap">PageDn</span> to advance</span>
+        <span>Press <span class="key-cap">←</span> or <span class="key-cap">PageUp</span> to go back</span>
+      </div>
+      <div class="controls-buttons">
+        <button class="btn-nav" id="btn-prev" aria-label="Previous Slide">←</button>
+        <button class="btn-nav" id="btn-next" aria-label="Next Slide">→</button>
+      </div>
+    </footer>
+  </div>
+
+</body>
+</html>
