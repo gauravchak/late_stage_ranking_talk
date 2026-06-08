@@ -140,9 +140,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnPairwise = document.getElementById('btn-mode-pairwise');
   const btnApplyGradient = document.getElementById('btn-apply-gradient');
   const itemA = document.getElementById('item-a');
-  const itemB = document.getElementById('item-b');
   const itemC = document.getElementById('item-c');
-  const itemD = document.getElementById('item-d');
   const playDesc = document.getElementById('playground-desc');
   
   let currentMode = 'pointwise';
@@ -152,7 +150,7 @@ document.addEventListener('DOMContentLoaded', () => {
       currentMode = 'pointwise';
       btnPointwise.classList.add('active');
       btnPairwise.classList.remove('active');
-      playDesc.textContent = "Pointwise fits labels directly: items C and D (unclicked) are pulled to 0.0, positive items A and B to 1.0, regardless of the relative order inside the session.";
+      playDesc.textContent = "Pointwise fits labels directly: negative item Neg B is pulled to 0.0, positive item Pos A to 1.0, regardless of context.";
       resetPlayground();
     });
     
@@ -160,7 +158,7 @@ document.addEventListener('DOMContentLoaded', () => {
       currentMode = 'pairwise';
       btnPairwise.classList.add('active');
       btnPointwise.classList.remove('active');
-      playDesc.textContent = "Pairwise optimizes order: it pulls positive items above negative items in the same session, focusing on relative preference rather than absolute values.";
+      playDesc.textContent = "Pairwise optimizes relative order: it pushes positive item Pos A above negative item Neg B, focusing on correct sequence rather than absolute score targets.";
       resetPlayground();
     });
     
@@ -171,15 +169,11 @@ document.addEventListener('DOMContentLoaded', () => {
       if (currentMode === 'pointwise') {
         // Pointwise: target positions are absolute (positives at 1.0, negatives at 0.0)
         if (itemA) itemA.style.top = '15%';
-        if (itemB) itemB.style.top = '15%';
         if (itemC) itemC.style.top = '85%';
-        if (itemD) itemD.style.top = '85%';
       } else {
         // Pairwise: target positions are relative (positives above negatives)
-        if (itemA) itemA.style.top = '15%';
-        if (itemB) itemB.style.top = '35%';
-        if (itemC) itemC.style.top = '60%';
-        if (itemD) itemD.style.top = '80%';
+        if (itemA) itemA.style.top = '30%';
+        if (itemC) itemC.style.top = '70%';
       }
       
       setTimeout(() => {
@@ -189,11 +183,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   
   function resetPlayground() {
-    if (itemA && itemB && itemC && itemD) {
-      itemA.style.top = '40%';
-      itemB.style.top = '60%';
-      itemC.style.top = '30%';
-      itemD.style.top = '50%';
+    if (itemA && itemC) {
+      itemA.style.top = '60%'; // Pos A starts lower
+      itemC.style.top = '40%'; // Neg B starts higher
     }
   }
 
