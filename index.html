@@ -542,12 +542,21 @@ loss = F.<span class="fn">binary_cross_entropy_with_logits</span>(
                     .flow-line-active-sb { stroke: var(--accent-blue); stroke-dasharray: 4, 4; animation: flow-line-sb 1.5s infinite linear; }
                   </style>
 
+                  <defs>
+                    <marker id="arrow-sb" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+                      <path d="M 0 1 L 10 5 L 0 9 z" fill="var(--text-muted)" />
+                    </marker>
+                    <marker id="arrow-blue-sb" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+                      <path d="M 0 1 L 10 5 L 0 9 z" fill="var(--accent-blue)" />
+                    </marker>
+                  </defs>
+
                   <!-- Connections with exact coordinates -->
-                  <path d="M 60 75 L 110 75" class="flow-line-active-sb" marker-end="url(#arrow-blue-mt)" stroke-width="2" />
-                  <path d="M 180 65 L 215 40" class="flow-line-sb" marker-end="url(#arrow-mt)" stroke-width="1.5" />
-                  <path d="M 180 85 L 215 110" class="flow-line-sb" marker-end="url(#arrow-mt)" stroke-width="1.5" />
-                  <path d="M 260 40 L 285 40" class="flow-line-active-sb" marker-end="url(#arrow-blue-mt)" stroke-width="1.5" />
-                  <path d="M 260 110 L 285 110" class="flow-line-active-sb" marker-end="url(#arrow-blue-mt)" stroke-width="1.5" />
+                  <path d="M 60 75 L 110 75" class="flow-line-active-sb" marker-end="url(#arrow-blue-sb)" stroke-width="2" />
+                  <path d="M 180 65 L 215 40" class="flow-line-sb" marker-end="url(#arrow-sb)" stroke-width="1.5" />
+                  <path d="M 180 85 L 215 110" class="flow-line-sb" marker-end="url(#arrow-sb)" stroke-width="1.5" />
+                  <path d="M 260 40 L 285 40" class="flow-line-active-sb" marker-end="url(#arrow-blue-sb)" stroke-width="1.5" />
+                  <path d="M 260 110 L 285 110" class="flow-line-active-sb" marker-end="url(#arrow-blue-sb)" stroke-width="1.5" />
 
                   <!-- Input Node (White background) -->
                   <g>
