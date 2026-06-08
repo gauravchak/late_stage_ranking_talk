@@ -983,3 +983,39 @@ pre:hover .shape-badge {
   border-style: dashed;
   text-decoration: line-through;
 }
+
+/* Dataset Generator Tables (Slide 5) */
+.dataset-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.dataset-table th, .dataset-table td {
+  padding: 6px 8px;
+  text-align: left;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.dataset-table th {
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.dataset-table tr.positive-row {
+  background: rgba(13, 148, 136, 0.08);
+  color: var(--accent-teal);
+  font-weight: 600;
+}
+
+.dataset-table tr.session-header {
+  background: rgba(15, 23, 42, 0.03);
+  font-weight: bold;
+  color: var(--text-primary);
+}
+
+.dataset-table tr.session-dead {
+  opacity: 0.5;
+  background: rgba(220, 38, 38, 0.02);
+  text-decoration: line-through;
+}

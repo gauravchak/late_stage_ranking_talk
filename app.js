@@ -56,9 +56,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (prevBtn) prevBtn.disabled = currentSlideIndex === 0;
     if (nextBtn) nextBtn.disabled = currentSlideIndex === slides.length - 1;
 
-    // Reset playground position on entering Slide 5
+    // Initialize dataset table on entering Slide 5
     if (currentSlideIndex === 4) {
-      resetPlayground();
+      if (btnShowPointwise) {
+        btnShowPointwise.classList.add('active');
+        if (btnShowPairwise) btnShowPairwise.classList.remove('active');
+      }
+      renderPointwiseTable();
     }
   }
   
@@ -135,58 +139,129 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // === INTERACTIVE GRADIENT PLAYGROUND (Slide 05) ===
-  const btnPointwise = document.getElementById('btn-mode-pointwise');
-  const btnPairwise = document.getElementById('btn-mode-pairwise');
-  const btnApplyGradient = document.getElementById('btn-apply-gradient');
-  const itemA = document.getElementById('item-a');
-  const itemC = document.getElementById('item-c');
-  const playDesc = document.getElementById('playground-desc');
-  
-  let currentMode = 'pointwise';
-  
-  if (btnPointwise && btnPairwise && btnApplyGradient) {
-    btnPointwise.addEventListener('click', () => {
-      currentMode = 'pointwise';
-      btnPointwise.classList.add('active');
-      btnPairwise.classList.remove('active');
-      playDesc.textContent = "Pointwise fits labels directly: negative item Neg B is pulled to 0.0, positive item Pos A to 1.0, regardless of context.";
-      resetPlayground();
-    });
-    
-    btnPairwise.addEventListener('click', () => {
-      currentMode = 'pairwise';
-      btnPairwise.classList.add('active');
-      btnPointwise.classList.remove('active');
-      playDesc.textContent = "Pairwise optimizes relative order: it pushes positive item Pos A above negative item Neg B, focusing on correct sequence rather than absolute score targets.";
-      resetPlayground();
-    });
-    
-    btnApplyGradient.addEventListener('click', () => {
-      // Toggle arrows active state
-      document.querySelectorAll('.gradient-arrow').forEach(arrow => arrow.classList.add('active'));
-      
-      if (currentMode === 'pointwise') {
-        // Pointwise: target positions are absolute (positives at 1.0, negatives at 0.0)
-        if (itemA) itemA.style.top = '15%';
-        if (itemC) itemC.style.top = '85%';
-      } else {
-        // Pairwise: target positions are relative (positives above negatives)
-        if (itemA) itemA.style.top = '30%';
-        if (itemC) itemC.style.top = '70%';
-      }
-      
-      setTimeout(() => {
-        document.querySelectorAll('.gradient-arrow').forEach(arrow => arrow.classList.remove('active'));
-      }, 1500);
-    });
+  // === INTERACTIVE DATASET GENERATOR (Slide 05) ===
+  const btnShowPointwise = document.getElementById('btn-show-pointwise');
+  const btnShowPairwise = document.getElementById('btn-show-pairwise');
+  const tableContainer = document.getElementById('dataset-table-container');
+
+  function renderPointwiseTable() {
+    if (!tableContainer) return;
+    tableContainer.innerHTML = `
+      <table class="dataset-table">
+        <thead>
+          <tr>
+            <th>Session</th>
+            <th>Item ID</th>
+            <th>Label (y)</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="session-header"><td colspan="4">Session 1 (4 impressed, 1 click)</td></tr>
+          <tr>
+            <td>Session 1</td>
+            <td>Item 1</td>
+            <td style="font-family:var(--font-mono)">0</td>
+            <td>Unclicked</td>
+          </tr>
+          <tr>
+            <td>Session 1</td>
+            <td>Item 2</td>
+            <td style="font-family:var(--font-mono)">0</td>
+            <td>Unclicked</td>
+          </tr>
+          <tr>
+            <td>Session 1</td>
+            <td>Item 3</td>
+            <td style="font-family:var(--font-mono)">0</td>
+            <td>Unclicked</td>
+          </tr>
+          <tr class="positive-row">
+            <td>Session 1</td>
+            <td>Item 4</td>
+            <td style="font-family:var(--font-mono)">1</td>
+            <td>Clicked (Positive)</td>
+          </tr>
+          <tr class="session-header"><td colspan="4">Session 2 (3 impressed, 0 click)</td></tr>
+          <tr>
+            <td>Session 2</td>
+            <td>Item 5</td>
+            <td style="font-family:var(--font-mono)">0</td>
+            <td>Unclicked</td>
+          </tr>
+          <tr>
+            <td>Session 2</td>
+            <td>Item 6</td>
+            <td style="font-family:var(--font-mono)">0</td>
+            <td>Unclicked</td>
+          </tr>
+          <tr>
+            <td>Session 2</td>
+            <td>Item 7</td>
+            <td style="font-family:var(--font-mono)">0</td>
+            <td>Unclicked</td>
+          </tr>
+        </tbody>
+      </table>
+    `;
   }
-  
-  function resetPlayground() {
-    if (itemA && itemC) {
-      itemA.style.top = '60%'; // Pos A starts lower
-      itemC.style.top = '40%'; // Neg B starts higher
-    }
+
+  function renderPairwiseTable() {
+    if (!tableContainer) return;
+    tableContainer.innerHTML = `
+      <table class="dataset-table">
+        <thead>
+          <tr>
+            <th>Session</th>
+            <th>Positive Item</th>
+            <th>Negative Item</th>
+            <th>Logit Formula</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="session-header"><td colspan="4">Session 1 (1 clicked × 3 unclicked = 3 pairs)</td></tr>
+          <tr class="positive-row">
+            <td>Session 1</td>
+            <td>Item 4 (+)</td>
+            <td>Item 1 (-)</td>
+            <td style="font-family:var(--font-mono)">score_4 - score_1</td>
+          </tr>
+          <tr class="positive-row">
+            <td>Session 1</td>
+            <td>Item 4 (+)</td>
+            <td>Item 2 (-)</td>
+            <td style="font-family:var(--font-mono)">score_4 - score_2</td>
+          </tr>
+          <tr class="positive-row">
+            <td>Session 1</td>
+            <td>Item 4 (+)</td>
+            <td>Item 3 (-)</td>
+            <td style="font-family:var(--font-mono)">score_4 - score_3</td>
+          </tr>
+          <tr class="session-header"><td colspan="4">Session 2 (0 clicked = 0 pairs)</td></tr>
+          <tr class="session-dead">
+            <td>Session 2</td>
+            <td colspan="3" style="text-align:center; font-style:italic;">
+              Ignored (No positive item to form preference pairs)
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    `;
+  }
+
+  if (btnShowPointwise && btnShowPairwise) {
+    btnShowPointwise.addEventListener('click', () => {
+      btnShowPointwise.classList.add('active');
+      btnShowPairwise.classList.remove('active');
+      renderPointwiseTable();
+    });
+
+    btnShowPairwise.addEventListener('click', () => {
+      btnShowPairwise.classList.add('active');
+      btnShowPointwise.classList.remove('active');
+      renderPairwiseTable();
+    });
   }
 
   // === INTERACTIVE TARGET ATTENTION (Slide 17) ===
