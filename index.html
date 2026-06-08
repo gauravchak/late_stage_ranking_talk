@@ -199,30 +199,34 @@ loss = -(rho * observed_rewards).mean() <span class="shape-badge">Scalar loss</s
       <section class="slide" id="slide-5">
         <div class="slide-header">
           <span class="slide-tag">05. Pointwise Scoring</span>
-          <h2>The scalar score is useful because it is sortable.</h2>
+          <h2>Pointwise multi-task losses train independent binary predictions.</h2>
         </div>
         <div class="slide-content-grid">
           <div class="narrative-col">
-            <h3>What the scalar means</h3>
+            <h3>Independent Binary Tasks</h3>
             <ul class="feature-list">
-              <li>It can be relevance, utility, or a calibrated task/value score.</li>
-              <li>For ads, calibrated predicted value matters because downstream auction logic consumes the number.</li>
-              <li>Ordering still matters: scores must be comparable within context.</li>
-              <li>The next question is how to train scores to create a better order.</li>
+              <li><strong>Independent Predictions:</strong> All $T$ tasks (e.g., <code>Like</code>, <code>Watch30s</code>) are formulated as independent $[0, 1]$ predictions.</li>
+              <li><strong>Logit Optimization:</strong> The network maps dense features $[B, F]$ to raw logits $[B, T]$. Predicting raw logits instead of probabilities prevents numerical instability.</li>
+              <li><strong>Pointwise BCE Loss:</strong> We train the network using binary cross-entropy with logits (<code>bce_with_logits</code>) calculated against the binary task targets.</li>
+              <li><strong>Separation of Concerns:</strong> At serving, raw logits are mapped via sigmoid to task probabilities $[B, T]$, which are then combined by the <code>value_model</code> to sort and return ranked candidate IDs.</li>
             </ul>
           </div>
           <div class="visualizer-col">
-            <pre data-lang="python"><code><span class="cm"># dense_x: [B, F]</span>
-<span class="cm"># label: [B], e.g., conversion value</span>
-score = value_model(dense_x) <span class="shape-badge">Shape: [B]</span>
+            <pre data-lang="python"><code><span class="cm"># --- TRAINING STAGE ---</span>
+<span class="cm"># dense_x: [B, F] (dense features), targets: [B, T] (binary labels)</span>
+logits = model(dense_x) <span class="shape-badge">Shape: [B, T]</span>
 
-<span class="cm"># Pointwise MSE loss example</span>
-loss = torch.nn.functional.mse_loss(
-    score, label.float()
+<span class="cm"># Train with BCE with Logits for stable gradients</span>
+loss = F.<span class="fn">binary_cross_entropy_with_logits</span>(
+    logits, targets.<span class="fn">float</span>()
 ) <span class="shape-badge">Scalar loss</span>
 
-<span class="cm"># Serving sorts by score</span>
-rank_idx = torch.argsort(score, descending=<span class="kw">True</span>)</code></pre>
+<span class="cm"># --- SERVING STAGE ---</span>
+<span class="cm"># Convert raw logits to probability estimates</span>
+probs = torch.<span class="fn">sigmoid</span>(logits) <span class="shape-badge">Shape: [B, T]</span>
+
+<span class="cm"># Value model gets probs and returns ranked candidate IDs</span>
+ranked_ids = <span class="fn">value_model</span>(probs) <span class="shape-badge">List of IDs</span></code></pre>
           </div>
         </div>
       </section>
