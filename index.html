@@ -56,22 +56,9 @@
       <!-- SLIDE 1: Title -->
       <section class="slide" id="slide-1">
         <div class="slide-title-layout">
-          <span class="slide-tag">Team Presentation Draft</span>
-          <h1>Core Ideas of Ranking</h1>
-          <p>A concrete path from scalar PyTorch scorers to pairwise objectives, feature interactions, multi-task value models, expert routing, and sequence attention.</p>
-          
-          <div class="metadata-grid" style="max-width: 600px; width: 100%;">
-            <div class="metadata-box">
-              <span class="metadata-label">Inputs & Outputs</span>
-              <span class="metadata-value">$[B, F]$ dense / $[B, T]$ task outputs</span>
-            </div>
-            <div class="metadata-box">
-              <span class="metadata-label">History Context</span>
-              <span class="metadata-value">$[B, N, D]$ sequence histories</span>
-            </div>
-          </div>
-          
-          <div class="author">
+          <span class="slide-tag">recsysml talk on late stage ranking</span>
+          <h1>Late Stage Ranking</h1>
+          <div class="author" style="margin-top: 40px;">
             <span class="desktop-hint">Use <span class="key-cap">→</span> or <span class="key-cap">Space</span> to navigate.</span>
             <span class="mobile-hint">Swipe to navigate.</span>
             <br><br>
@@ -80,90 +67,87 @@
         </div>
       </section>
 
-      <!-- SLIDE 2: Mental Model -->
+      <!-- SLIDE 2: Role of Ranking in the Ecosystem -->
       <section class="slide" id="slide-2">
         <div class="slide-header">
-          <span class="slide-tag">02. Mental Model</span>
-          <h2>Ranking is score, sort, and learn from the ordering.</h2>
+          <span class="slide-tag">02. The Ecosystem</span>
+          <h2>Role of Ranking in the Ecosystem</h2>
         </div>
         <div class="slide-content-grid">
           <div class="narrative-col">
-            <h3>The Serving Path</h3>
-            <p>The serving path is intentionally simple: score each candidate in a comparable context, then order by the score.</p>
+            <div class="info-badge purple">LSR as pure Estimator</div>
+            <p>The late stage ranking model (LSR) is a high impact lever to learn from real-time feedback, serving a specific function in the recommendation ecosystem.</p>
             
-            <div class="flow-container">
-              <div class="flow-diagram-horizontal">
-                <div class="flow-node">Candidate Rows</div>
-                <div class="flow-arrow">→</div>
-                <div class="flow-node">Feature Preprocessing</div>
-                <div class="flow-arrow">→</div>
-                <div class="flow-node highlight-blue">Model Scorer</div>
-                <div class="flow-arrow">→</div>
-                <div class="flow-node">Scalar Scores</div>
-                <div class="flow-arrow">→</div>
-                <div class="flow-node">Sort Descending</div>
-              </div>
-            </div>
+            <p>In this decoupled framing, the ranking model itself performs <strong>no ranking</strong>:</p>
+            <ul class="feature-list purple">
+              <li><strong>Estimation Only:</strong> LSR ingests user and candidate features $[B, F]$ and produces statistical predictions of task events: $P(\text{click}), P(\text{comment}), P(\text{share}), P(\text{hide})$.</li>
+              <li><strong>Separation of Concerns:</strong> The Value Model (VM) team independently optimizes the utility function (often using offline data analysis) to drive long-term rewards like retention and DAU.</li>
+              <li><strong>Decoupled Ranking:</strong> The VM team combines predictions (e.g., $w_1 P(\text{click}) + w_2 P(\text{comment}) - w_3 P(\text{hide})$) and ranks candidates however they choose.</li>
+            </ul>
           </div>
           <div class="visualizer-col">
-            <pre data-lang="python"><code><span class="cm"># features: [B, F]</span>
-<span class="cm"># candidates: length B objects aligned with features</span>
-scores = model(features).squeeze(-<span class="num">1</span>) <span class="shape-badge">Shape: [B]</span>
-<span class="cm"># [B]</span>
-rank_idx = torch.argsort(scores, descending=<span class="kw">True</span>)
-ranked_candidates = candidates[rank_idx]</code></pre>
+            <div class="glass-card highlight" style="display: flex; flex-direction: column; gap: 16px;">
+              <h4 style="margin-bottom: 8px; font-family: var(--font-heading); text-align: center;">Decoupled Estimator Pipeline</h4>
+              
+              <div style="display: flex; flex-direction: column; gap: 12px; align-items: center;">
+                <div class="flow-node" style="width: 100%; text-align: center;">Features $[B, F]$</div>
+                <div class="flow-arrow">↓</div>
+                <div class="flow-node highlight-blue" style="width: 100%; text-align: center; background: rgba(37,99,235,0.06); border-color: var(--accent-blue);">
+                  <strong>LSR Estimator Model</strong>
+                  <div style="font-size: 10px; margin-top: 4px; color: var(--text-muted);">Task Probability Outputs: [P_click, P_share, P_hide]</div>
+                </div>
+                <div class="flow-arrow">↓</div>
+                <div class="flow-node highlight-teal" style="width: 100%; text-align: center; background: rgba(13,148,136,0.06); border-color: var(--accent-teal);">
+                  <strong>Value Model (VM) Logic</strong>
+                  <div style="font-size: 10px; margin-top: 4px; color: var(--text-muted);">w_1 * P_click + w_2 * P_share - w_3 * P_hide</div>
+                </div>
+                <div class="flow-arrow">↓</div>
+                <div class="flow-node" style="width: 100%; text-align: center; font-weight: bold; background: rgba(15,23,42,0.05);">Sort Descending & Serve Feed</div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      <!-- SLIDE 3: Stage 1 Value Scorer -->
+      <!-- SLIDE 3: Ranking as a Reward Maximizer -->
       <section class="slide" id="slide-3">
         <div class="slide-header">
-          <span class="slide-tag">03. Stage 1 Scorer</span>
-          <h2>A dense value scorer starts from $[B, F]$.</h2>
+          <span class="slide-tag">03. Reward Optimization</span>
+          <h2>Ranking as a Reward Maximizer</h2>
         </div>
         <div class="slide-content-grid">
           <div class="narrative-col">
-            <div class="info-badge purple">Normalization & Scale</div>
-            <p>Dense float features must be normalized before the model sees them. Float normalization matters more for DNNs than GBDTs because gradients and activations are scale-sensitive.</p>
+            <div class="info-badge blue">Expected Reward Policy</div>
+            <p>Alternatively, the LSR model can be framed as a stochastic policy optimized directly to maximize expected reward in the presence of a fixed Value Model.</p>
             
-            <div class="callout info">
-              <strong>Architecture Note:</strong> Meta retrieval models often use SwishLayerNorm as $y = x \cdot \text{sigmoid}(\text{LayerNorm}(x))$; activation and normalization order is architecture-specific.
-            </div>
-
-            <div class="metadata-box" style="margin-top: 16px;">
-              <span class="metadata-label">Tensors</span>
-              <p style="margin: 0; font-family: var(--font-mono); font-size: 13px;">
-                dense_x: [B, F] &nbsp;|&nbsp; hidden: [B, H] &nbsp;|&nbsp; score: [B]
-              </p>
-            </div>
+            <ul class="feature-list">
+              <li><strong>Pointwise Scores:</strong> Similar to LLMs, the ranking model still produces pointwise scores, but these scores are combined through the fixed VM.</li>
+              <li><strong>Stochastic Policy:</strong> The combined score determines the probability of item $i$ being shown to the user $\pi_\theta(i \mid x)$ (e.g., via softmax).</li>
+              <li><strong>Policy Gradient Loss:</strong> The model parameters $\theta$ are trained directly from logged feedback using the importance-weighted negative reward loss:
+                <div class="math-block" style="font-size: 15px; margin: 8px 0;">
+                  $$\text{loss} = - \rho_i \cdot r_i$$
+                </div>
+                Where $r_i$ is the observed reward, and the importance sampling ratio $\rho_i = \frac{\pi_\theta(i \mid x)}{\pi_{\text{old}}(i \mid x)}$ corrects for offline policy bias.
+              </li>
+            </ul>
           </div>
           <div class="visualizer-col">
-            <pre data-lang="python"><code><span class="kw">import</span> torch
-<span class="kw">import</span> torch.nn <span class="kw">as</span> nn
+            <pre data-lang="python"><code><span class="cm"># logits: [B, C, T] (pointwise task predictions for C candidates)</span>
+<span class="cm"># vm_weights: [T] (fixed weights from VM team)</span>
+<span class="cm"># observed_rewards: [B] (observed reward r_i)</span>
+<span class="cm"># old_probs: [B] (probability under logging policy)</span>
 
-<span class="kw">class</span> <span class="cls">SwishLayerNormBlock</span>(nn.Module):
-    <span class="kw">def</span> <span class="fn">__init__</span>(<span class="self">self</span>, in_dim, out_dim):
-        <span class="kw">super</span>().__init__()
-        <span class="self">self</span>.linear = nn.Linear(in_dim, out_dim)
-        <span class="self">self</span>.norm_gate = nn.Sequential(
-            nn.LayerNorm(out_dim),
-            nn.Sigmoid()
-        )
-    <span class="kw">def</span> <span class="fn">forward</span>(<span class="self">self</span>, x): <span class="cm"># x: [B, in_dim]</span>
-        x = <span class="self">self</span>.linear(x) <span class="shape-badge">Shape: [B, out_dim]</span>
-        <span class="kw">return</span> x * <span class="self">self</span>.norm_gate(x)
+<span class="cm"># 1. Combine task predictions through VM to get scores</span>
+scores = (logits * vm_weights).sum(dim=-<span class="num">1</span>) <span class="shape-badge">Shape: [B, C]</span>
 
-<span class="kw">class</span> <span class="cls">ValueScorer</span>(nn.Module):
-    <span class="kw">def</span> <span class="fn">__init__</span>(<span class="self">self</span>, num_features, hidden_dim):
-        <span class="kw">super</span>().__init__()
-        <span class="self">self</span>.net = nn.Sequential(
-            SwishLayerNormBlock(num_features, hidden_dim),
-            SwishLayerNormBlock(hidden_dim, hidden_dim),
-            nn.Linear(hidden_dim, <span class="num">1</span>)
-        )
-    <span class="kw">def</span> <span class="fn">forward</span>(<span class="self">self</span>, dense_x): <span class="shape-badge">dense_x: [B, F]</span>
-        <span class="kw">return</span> <span class="self">self</span>.net(dense_x).squeeze(-<span class="num">1</span>) <span class="shape-badge">Shape: [B]</span></code></pre>
+<span class="cm"># 2. Compute stochastic policy probability of selection</span>
+pi_theta = torch.softmax(scores / tau, dim=-<span class="num">1</span>) <span class="shape-badge">Shape: [B, C]</span>
+
+<span class="cm"># 3. Compute importance ratio rho for active choices</span>
+rho = pi_theta / old_probs <span class="shape-badge">Shape: [B, C]</span>
+
+<span class="cm"># 4. RL Loss: maximize expected reward</span>
+loss = -(rho * observed_rewards).mean() <span class="shape-badge">Scalar loss</span></code></pre>
           </div>
         </div>
       </section>
